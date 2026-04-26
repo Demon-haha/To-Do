@@ -110,3 +110,10 @@ button, .no-select { -webkit-user-select: none; user-select: none; }
 
 /* 11. Спиннер загрузки */
 @keyframes _spin { to { transform: rotate(360deg); } }
+
+/* 12. Мобильный FAB — раскрытие снизу */
+@keyframes slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.composer-slide-up { animation: slide-up 0.22s cubic-bezier(0.34,1.15,0.64,1); }

@@ -1084,8 +1084,11 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
                 </div>
               )}
             </div>
-            <button onClick={() => onStar(task.id)} className={`p-1 mt-0.5 shrink-0 ${task.important ? "text-yellow-400" : "text-gray-600 hover:text-gray-400"}`}>
-              <L name="Star" size={22} fill={task.important ? "currentColor" : "none"} />
+            <button
+              onClick={() => onStar(task.id)}
+              className={`p-1 mt-0.5 shrink-0 ${task.important ? "text-yellow-400" : "text-gray-600 hover:text-gray-400"}`}
+              style={task.important ? {filter: "drop-shadow(0 0 7px rgba(251,191,36,0.9))"} : undefined}>
+              <L name="Star" size={22} fill={task.important ? "currentColor" : "none"} strokeWidth={task.important ? 0 : 2} />
             </button>
           </div>
           <div className="border-b border-gray-700/30">
@@ -1931,23 +1934,9 @@ function Sidebar({
         ))}
       </nav>
       <div className="border-t border-gray-200 dark:border-gray-700 p-2 space-y-0.5 safe-bottom">
-        {notifStatus === "default" && (
-          /*#__PURE__*/ <button
-            onClick={onEnableNotif}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-xs text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30">
-            <L name="Bell" size={14} /> Включить уведомления
-          </button>
-        )}
-        {notifStatus === "granted" && (
-          /*#__PURE__*/ <button
-            onClick={onTestNotif}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-xs text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20">
-            <L name="BellRing" size={14} /> Тест уведомления
-          </button>
-        )}
         {notifStatus === "denied" && (
           /*#__PURE__*/ <div className="px-3 py-1.5 text-[11px] text-red-500 flex items-center gap-1">
-            <L name="BellOff" size={12} /> Уведомления заблокированы
+            <L name="BellOff" size={12} /> Уведомления заблокированы в браузере
           </div>
         )}
         <button
@@ -2090,8 +2079,9 @@ const TaskRow = memo(function TaskRow({ task, showListEmoji, listEmoji, nowTs, i
         </div>
         <button
           onClick={() => onStar(task.id)}
-          className={`p-2 rounded hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-colors ${task.important ? "text-yellow-500" : "text-gray-400 dark:text-gray-500"}`}>
-          <L name="Star" size={18} fill={task.important ? "currentColor" : "none"} />
+          className={`p-2 rounded transition-colors ${task.important ? "text-yellow-400" : "text-gray-400 dark:text-gray-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"}`}
+          style={task.important ? {filter: "drop-shadow(0 0 5px rgba(251,191,36,0.85))"} : undefined}>
+          <L name="Star" size={18} fill={task.important ? "currentColor" : "none"} strokeWidth={task.important ? 0 : 2} />
         </button>
       </div>
     </div>
@@ -2110,8 +2100,11 @@ function TaskComposer({
   onClearComposerDate,
   onClearComposerReminder,
   onClearComposerRecurrence,
+  isMobile,
 }) {
   const [value, setValue] = useState("");
+  const [fabOpen, setFabOpen] = useState(false);
+  const taRef = useRef(null);
   const submit = () => {
     const v = value.trim();
     if (!v) return;
@@ -2121,99 +2114,114 @@ function TaskComposer({
       recurrence: pickedRecurrence || null,
     });
     setValue("");
-    if (taRef.current) {
-      taRef.current.style.height = "auto";
-    }
+    if (taRef.current) taRef.current.style.height = "auto";
     onClearComposerDate();
     onClearComposerReminder();
     onClearComposerRecurrence();
+    if (isMobile) setFabOpen(false);
   };
   const iconBtn = (active) =>
     `p-1.5 rounded transition-colors ${active ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30" : "text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400"}`;
   const hasAny = pickedDate || pickedReminder || pickedRecurrence;
-  const taRef = useRef(null);
   const autoResize = (e) => {
     e.target.style.height = "auto";
     e.target.style.height = e.target.scrollHeight + "px";
   };
+  const openFab = () => {
+    setFabOpen(true);
+    setTimeout(() => taRef.current?.focus(), 60);
+  };
+
+  // Мобильный режим — FAB (свёрнутый кружок)
+  if (isMobile && !fabOpen) {
+    return (
+      /*#__PURE__*/ <button
+        onClick={openFab}
+        aria-label="Добавить задачу"
+        className="fixed bottom-6 left-4 z-50 w-14 h-14 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-full flex items-center justify-center shadow-xl transition-transform duration-200 safe-bottom">
+        <L name="Plus" size={26} />
+      </button>
+    );
+  }
+
+  // Мобильный режим — раскрытый поверх контента
+  const overlay = isMobile && fabOpen;
   return (
-    /*#__PURE__*/ <div className="rounded-md border transition-colors bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-sm focus-within:border-blue-400 dark:focus-within:border-blue-500">
-      <div className="px-4 pt-3 pb-2 flex items-start gap-2">
-        <span className="text-blue-600 dark:text-blue-400 mt-0.5 shrink-0">
-          <L name="Plus" size={18} />
-        </span>
-        <textarea
-          ref={taRef}
-          rows={1}
-          value={value}
-          onChange={(e) => {
-            setValue(e.target.value);
-            autoResize(e);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              submit();
-            }
-          }}
-          placeholder="Добавить задачу"
-          className="flex-1 min-w-0 bg-transparent outline-none text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 resize-none overflow-hidden leading-5"
-        />
-      </div>
-      {(value.trim() || hasAny) && (
-        /*#__PURE__*/ <div className="px-3 pb-2.5 flex items-center justify-between gap-2 border-t border-gray-100 dark:border-gray-700 pt-2">
-          <div className="flex items-center gap-0.5">
-            <button onClick={onOpenCalendar} title="Установить срок" className={iconBtn(pickedDate)}>
-              <L name="CalendarDays" size={16} />
-            </button>
-            <button onClick={onOpenReminder} title="Напомнить мне" className={iconBtn(pickedReminder)}>
-              <L name="AlarmClock" size={16} />
-            </button>
-            <button onClick={onOpenRecurrence} title="Повтор" className={iconBtn(pickedRecurrence)}>
-              <L name="Repeat" size={16} />
-            </button>
+    /*#__PURE__*/ <>
+      {overlay && /*#__PURE__*/ <div className="fixed inset-0 z-40 bg-black/20" onClick={() => { if (!value.trim() && !hasAny) setFabOpen(false); }} />}
+      <div className={overlay ? "fixed bottom-0 left-0 right-0 z-50 p-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 shadow-2xl safe-bottom safe-left safe-right composer-slide-up" : ""}>
+        <div className="rounded-md border transition-colors bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-sm focus-within:border-blue-400 dark:focus-within:border-blue-500">
+          <div className="px-4 pt-3 pb-2 flex items-center gap-2">
+            <span className="text-blue-600 dark:text-blue-400 shrink-0">
+              <L name="Plus" size={18} />
+            </span>
+            <textarea
+              ref={taRef}
+              rows={1}
+              value={value}
+              onChange={(e) => { setValue(e.target.value); autoResize(e); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
+              }}
+              placeholder="Добавить задачу"
+              className="flex-1 min-w-0 bg-transparent outline-none text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 resize-none overflow-hidden leading-5"
+            />
+            {value.trim() && (
+              /*#__PURE__*/ <button
+                onClick={submit}
+                aria-label="Добавить задачу"
+                className="shrink-0 w-8 h-8 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg flex items-center justify-center transition-colors">
+                <L name="ArrowUp" size={16} />
+              </button>
+            )}
           </div>
-          {value.trim() && (
-            /*#__PURE__*/ <button
-              onClick={submit}
-              className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 font-medium px-3 py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 shrink-0">
-              Добавить
-            </button>
+          {(value.trim() || hasAny) && (
+            /*#__PURE__*/ <div className="px-3 pb-2.5 flex items-center gap-0.5 border-t border-gray-100 dark:border-gray-700 pt-2">
+              <button onClick={onOpenCalendar} title="Срок выполнения" className={iconBtn(pickedDate)}>
+                <L name="CalendarDays" size={16} />
+              </button>
+              <button onClick={onOpenReminder} title="Напомнить мне" className={iconBtn(pickedReminder)}>
+                <L name="AlarmClock" size={16} />
+              </button>
+              <button onClick={onOpenRecurrence} title="Повторение задачи" className={iconBtn(pickedRecurrence)}>
+                <L name="Repeat" size={16} />
+              </button>
+            </div>
+          )}
+          {hasAny && (
+            /*#__PURE__*/ <div className="px-4 pb-2.5 flex items-center flex-wrap gap-x-3 gap-y-1 border-t border-gray-100 dark:border-gray-700 pt-2">
+              {pickedDate && (
+                /*#__PURE__*/ <span className="flex items-center gap-1">
+                  <L name="CalendarDays" size={12} className="text-blue-500 shrink-0" />
+                  <span className="text-xs text-blue-600 dark:text-blue-400">{formatDate(pickedDate)}</span>
+                  <button onClick={onClearComposerDate} className="text-xs text-gray-400 hover:text-red-500 px-1">
+                    <L name="X" size={11} />
+                  </button>
+                </span>
+              )}
+              {pickedReminder && (
+                /*#__PURE__*/ <span className="flex items-center gap-1">
+                  <L name="Bell" size={12} className="text-blue-500 shrink-0" />
+                  <span className="text-xs text-blue-600 dark:text-blue-400">{formatDate(pickedReminder)}</span>
+                  <button onClick={onClearComposerReminder} className="text-xs text-gray-400 hover:text-red-500 px-1">
+                    <L name="X" size={11} />
+                  </button>
+                </span>
+              )}
+              {pickedRecurrence && (
+                /*#__PURE__*/ <span className="flex items-center gap-1">
+                  <L name="Repeat" size={12} className="text-blue-500 shrink-0" />
+                  <span className="text-xs text-blue-600 dark:text-blue-400">{recurrenceLabel(pickedRecurrence)}</span>
+                  <button onClick={onClearComposerRecurrence} className="text-xs text-gray-400 hover:text-red-500 px-1">
+                    <L name="X" size={11} />
+                  </button>
+                </span>
+              )}
+            </div>
           )}
         </div>
-      )}
-      {hasAny && (
-        /*#__PURE__*/ <div className="px-4 pb-2.5 flex items-center flex-wrap gap-x-3 gap-y-1 border-t border-gray-100 dark:border-gray-700 pt-2">
-          {pickedDate && (
-            /*#__PURE__*/ <span className="flex items-center gap-1">
-              <L name="CalendarDays" size={12} className="text-blue-500 shrink-0" />
-              <span className="text-xs text-blue-600 dark:text-blue-400">{formatDate(pickedDate)}</span>
-              <button onClick={onClearComposerDate} className="text-xs text-gray-400 hover:text-red-500 px-1">
-                <L name="X" size={11} />
-              </button>
-            </span>
-          )}
-          {pickedReminder && (
-            /*#__PURE__*/ <span className="flex items-center gap-1">
-              <L name="Bell" size={12} className="text-blue-500 shrink-0" />
-              <span className="text-xs text-blue-600 dark:text-blue-400">{formatDate(pickedReminder)}</span>
-              <button onClick={onClearComposerReminder} className="text-xs text-gray-400 hover:text-red-500 px-1">
-                <L name="X" size={11} />
-              </button>
-            </span>
-          )}
-          {pickedRecurrence && (
-            /*#__PURE__*/ <span className="flex items-center gap-1">
-              <L name="Repeat" size={12} className="text-blue-500 shrink-0" />
-              <span className="text-xs text-blue-600 dark:text-blue-400">{recurrenceLabel(pickedRecurrence)}</span>
-              <button onClick={onClearComposerRecurrence} className="text-xs text-gray-400 hover:text-red-500 px-1">
-                <L name="X" size={11} />
-              </button>
-            </span>
-          )}
-        </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -2251,6 +2259,11 @@ function App() {
     const h = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", h);
     return () => window.removeEventListener("resize", h);
+  }, []);
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().then(p => setNotifStatus(p));
+    }
   }, []);
   useEffect(() => {
     if (view === "tasks") setView("myday");
@@ -2866,8 +2879,9 @@ function App() {
           </div>
         </div>
         {!search.trim() && (
-          /*#__PURE__*/ <div className="p-3 sm:p-4 border-t bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 safe-bottom safe-left safe-right">
-            <TaskComposer
+          isMobile ? (
+            /*#__PURE__*/ <TaskComposer
+              isMobile={true}
               onAdd={addTask}
               pickedDate={composerDate}
               pickedReminder={composerReminder}
@@ -2879,7 +2893,22 @@ function App() {
               onClearComposerReminder={() => setComposerReminder(null)}
               onClearComposerRecurrence={() => setComposerRecurrence(null)}
             />
-          </div>
+          ) : (
+            /*#__PURE__*/ <div className="p-3 sm:p-4 border-t bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 safe-bottom safe-left safe-right">
+              <TaskComposer
+                onAdd={addTask}
+                pickedDate={composerDate}
+                pickedReminder={composerReminder}
+                pickedRecurrence={composerRecurrence}
+                onOpenCalendar={() => setComposerCalOpen(true)}
+                onOpenReminder={() => setComposerRemOpen(true)}
+                onOpenRecurrence={() => setComposerRecOpen(true)}
+                onClearComposerDate={() => setComposerDate(null)}
+                onClearComposerReminder={() => setComposerReminder(null)}
+                onClearComposerRecurrence={() => setComposerRecurrence(null)}
+              />
+            </div>
+          )
         )}
       </main>
       <ToastContainer />
