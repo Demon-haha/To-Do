@@ -1991,7 +1991,7 @@ const TaskRow = memo(function TaskRow({ task, showListEmoji, listEmoji, nowTs, i
         onContext(e, task);
       }}
       {...(IS_TOUCH ? longPress : {})}
-      className="fade-in group rounded-md mb-1.5 transition-shadow border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow-sm dark:hover:border-gray-600">
+      className="fade-in group rounded-md mb-1.5 transition-shadow border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow-sm dark:hover:border-gray-600 task-row">
       <div className="flex items-center gap-3 px-4 py-3">
         <button
           onClick={() => onToggle(task.id)}
@@ -2121,7 +2121,7 @@ function TaskComposer({
     if (isMobile) setFabOpen(false);
   };
   const iconBtn = (active) =>
-    `p-1.5 rounded transition-colors ${active ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30" : "text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400"}`;
+    `flex items-center gap-1 px-2 py-1 rounded transition-colors text-xs font-medium ${active ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30" : "text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400"}`;
   const hasAny = pickedDate || pickedReminder || pickedRecurrence;
   const autoResize = (e) => {
     e.target.style.height = "auto";
@@ -2176,15 +2176,15 @@ function TaskComposer({
             )}
           </div>
           {(value.trim() || hasAny) && (
-            /*#__PURE__*/ <div className="px-3 pb-2.5 flex items-center gap-0.5 border-t border-gray-100 dark:border-gray-700 pt-2">
+            /*#__PURE__*/ <div className="px-3 pb-2.5 flex items-center gap-1 border-t border-gray-100 dark:border-gray-700 pt-2">
               <button onClick={onOpenCalendar} title="Срок выполнения" className={iconBtn(pickedDate)}>
-                <L name="CalendarDays" size={16} />
+                <L name="CalendarDays" size={14} /><span>Срок</span>
               </button>
               <button onClick={onOpenReminder} title="Напомнить мне" className={iconBtn(pickedReminder)}>
-                <L name="AlarmClock" size={16} />
+                <L name="Bell" size={14} /><span>Напомнить</span>
               </button>
               <button onClick={onOpenRecurrence} title="Повторение задачи" className={iconBtn(pickedRecurrence)}>
-                <L name="Repeat" size={16} />
+                <L name="Repeat" size={14} /><span>Повтор</span>
               </button>
             </div>
           )}

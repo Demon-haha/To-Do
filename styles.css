@@ -107,6 +107,11 @@ button, .no-select { -webkit-user-select: none; user-select: none; }
   transform: scale(0.98);
   transition: transform 0.15s ease;
 }
+.task-row {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
 
 /* 11. Спиннер загрузки */
 @keyframes _spin { to { transform: rotate(360deg); } }
