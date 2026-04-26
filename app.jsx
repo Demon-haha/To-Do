@@ -911,7 +911,7 @@ function MoveTaskModal({ open, onClose, lists, currentListId, onPick }) {
             onClose();
           }}
           className={`flex items-center gap-3 px-3 py-2.5 rounded text-left text-sm ${currentListId === null ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300" : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"}`}>
-          <span className="text-lg">📥</span>
+          <L name="Sun" size={18} className="text-yellow-500 shrink-0" />
           <span>Без списка</span>
         </button>
         {lists.map((l) => (
@@ -1204,28 +1204,19 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
               )}
             </div>
           </div>
-          <button
-            onClick={() =>
-              onUpdate(task.id, {
-                myDay: !task.myDay,
-              })
-            }
-            className="w-full flex items-center gap-4 px-5 py-4 border-b border-gray-700/30 hover:bg-gray-800/30 transition-colors">
-            <L name="Sun" size={20} className="text-gray-500" />
-            <span className="text-sm flex-1 text-left text-gray-400">{task.myDay ? "Добавлено в «Мой день»" : "Добавить в «Мой день»"}</span>
+          <div
+            onClick={() => onUpdate(task.id, { myDay: !task.myDay })}
+            className="cursor-pointer w-full flex items-center gap-4 px-5 py-4 border-b border-gray-700/30 hover:bg-gray-800/30 transition-colors">
+            <L name="Sun" size={20} className={task.myDay ? "text-yellow-400" : "text-gray-500"} />
+            <span className={`text-sm flex-1 text-left ${task.myDay ? "text-yellow-400" : "text-gray-400"}`}>{task.myDay ? "Добавлено в «Мой день»" : "Добавить в «Мой день»"}</span>
             {task.myDay && (
-              /*#__PURE__*/ <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onUpdate(task.id, {
-                    myDay: false,
-                  });
-                }}
-                className="p-1 text-gray-600 hover:text-gray-400">
+              <button
+                onClick={(e) => { e.stopPropagation(); onUpdate(task.id, { myDay: false }); }}
+                className="p-1 text-gray-600 hover:text-gray-400 rounded">
                 <L name="X" size={14} />
               </button>
             )}
-          </button>
+          </div>
           <button onClick={() => onOpenDate(task)} className="w-full flex items-center gap-4 px-5 py-4 border-b border-gray-700/30 hover:bg-gray-800/30 transition-colors">
             <L name="Calendar" size={20} className={dateOverdue ? "text-red-400" : "text-gray-500"} />
             <span className={`text-sm flex-1 text-left ${dateOverdue ? "text-red-400" : "text-gray-400"}`}>{task.dueDate ? formatDateOnly(task.dueDate) : "Добавить дату выполнения"}</span>
@@ -1861,6 +1852,7 @@ function Sidebar({
   setSearch,
   onClose,
   isMobile,
+  open,
   notifStatus,
   onEnableNotif,
   onTestNotif,
@@ -1887,7 +1879,8 @@ function Sidebar({
   return (
     /*#__PURE__*/ <aside
       className={`sidebar-bg border-r border-gray-200 dark:border-gray-700/60 flex flex-col w-72 shrink-0
-        ${isMobile ? "fixed inset-y-0 left-0 z-40 shadow-2xl" : ""}`}>
+        ${isMobile ? "fixed inset-y-0 left-0 z-40 shadow-2xl transition-transform duration-300 ease-out" : ""}
+        ${isMobile && !open ? "-translate-x-full" : "translate-x-0"}`}>
       <div className="px-3 pt-3 pb-2 flex items-center justify-between gap-2 safe-top">
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shrink-0">
@@ -2212,46 +2205,39 @@ function TaskComposer({
             )}
           </div>
           {(value.trim() || hasAny) && (
-            /*#__PURE__*/ <div className="px-3 pb-2.5 flex items-center gap-1 border-t border-gray-100 dark:border-gray-700 pt-2">
-              <button onClick={onOpenCalendar} title="Срок выполнения" className={iconBtn(pickedDate)}>
-                <L name="CalendarDays" size={14} /><span>Срок</span>
-              </button>
-              <button onClick={onOpenReminder} title="Напомнить мне" className={iconBtn(pickedReminder)}>
-                <L name="Bell" size={14} /><span>Напомнить</span>
-              </button>
-              <button onClick={onOpenRecurrence} title="Повторение задачи" className={iconBtn(pickedRecurrence)}>
-                <L name="Repeat" size={14} /><span>Повтор</span>
-              </button>
-            </div>
-          )}
-          {hasAny && (
-            /*#__PURE__*/ <div className="px-4 pb-2.5 flex items-center flex-wrap gap-x-3 gap-y-1 border-t border-gray-100 dark:border-gray-700 pt-2">
-              {pickedDate && (
-                /*#__PURE__*/ <span className="flex items-center gap-1">
-                  <L name="CalendarDays" size={12} className="text-blue-500 shrink-0" />
-                  <span className="text-xs text-blue-600 dark:text-blue-400">{formatDate(pickedDate)}</span>
-                  <button onClick={onClearComposerDate} className="text-xs text-gray-400 hover:text-red-500 px-1">
-                    <L name="X" size={11} />
-                  </button>
-                </span>
+            <div className="px-3 pb-2.5 flex items-center gap-1 flex-wrap border-t border-gray-100 dark:border-gray-700 pt-2">
+              {pickedDate ? (
+                <div className={iconBtn(true)}>
+                  <L name="CalendarDays" size={14} />
+                  <span onClick={onOpenCalendar} className="cursor-pointer">{formatDate(pickedDate)}</span>
+                  <span onClick={onClearComposerDate} className="ml-0.5 hover:text-red-500 cursor-pointer"><L name="X" size={11} /></span>
+                </div>
+              ) : (
+                <button onClick={onOpenCalendar} title="Срок выполнения" className={iconBtn(false)}>
+                  <L name="CalendarDays" size={14} /><span>Срок</span>
+                </button>
               )}
-              {pickedReminder && (
-                /*#__PURE__*/ <span className="flex items-center gap-1">
-                  <L name="Bell" size={12} className="text-blue-500 shrink-0" />
-                  <span className="text-xs text-blue-600 dark:text-blue-400">{formatDate(pickedReminder)}</span>
-                  <button onClick={onClearComposerReminder} className="text-xs text-gray-400 hover:text-red-500 px-1">
-                    <L name="X" size={11} />
-                  </button>
-                </span>
+              {pickedReminder ? (
+                <div className={iconBtn(true)}>
+                  <L name="Bell" size={14} />
+                  <span onClick={onOpenReminder} className="cursor-pointer">{formatDate(pickedReminder)}</span>
+                  <span onClick={onClearComposerReminder} className="ml-0.5 hover:text-red-500 cursor-pointer"><L name="X" size={11} /></span>
+                </div>
+              ) : (
+                <button onClick={onOpenReminder} title="Напомнить мне" className={iconBtn(false)}>
+                  <L name="Bell" size={14} /><span>Напомнить</span>
+                </button>
               )}
-              {pickedRecurrence && (
-                /*#__PURE__*/ <span className="flex items-center gap-1">
-                  <L name="Repeat" size={12} className="text-blue-500 shrink-0" />
-                  <span className="text-xs text-blue-600 dark:text-blue-400">{recurrenceLabel(pickedRecurrence)}</span>
-                  <button onClick={onClearComposerRecurrence} className="text-xs text-gray-400 hover:text-red-500 px-1">
-                    <L name="X" size={11} />
-                  </button>
-                </span>
+              {pickedRecurrence ? (
+                <div className={iconBtn(true)}>
+                  <L name="Repeat" size={14} />
+                  <span onClick={onOpenRecurrence} className="cursor-pointer">{recurrenceLabel(pickedRecurrence)}</span>
+                  <span onClick={onClearComposerRecurrence} className="ml-0.5 hover:text-red-500 cursor-pointer"><L name="X" size={11} /></span>
+                </div>
+              ) : (
+                <button onClick={onOpenRecurrence} title="Повторение задачи" className={iconBtn(false)}>
+                  <L name="Repeat" size={14} /><span>Повтор</span>
+                </button>
               )}
             </div>
           )}
@@ -2841,34 +2827,36 @@ function App() {
   }, [sidebarOpen]);
   return (
     /*#__PURE__*/ <div className="flex h-full w-full" onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd}>
-      {(!isMobile || sidebarOpen) && (
-        /*#__PURE__*/ <Sidebar
-          view={view}
-          setView={setView}
-          counts={counts}
-          lists={lists}
-          onDeleteList={deleteList}
-          onRenameList={renameList}
-          onReEmojiList={reemojiList}
-          onRecolorList={(list) =>
-            setColorPicker({
-              id: list.id,
-              current: list.color,
-            })
-          }
-          onOpenCreate={() => setCreateOpen(true)}
-          search={search}
-          setSearch={setSearch}
-          onClose={() => setSidebarOpen(false)}
-          isMobile={isMobile}
-          notifStatus={notifStatus}
-          onEnableNotif={enableNotif}
-          onTestNotif={testNotif}
-          dark={dark}
-          toggleTheme={toggleTheme}
-        />
-      )}
-      {isMobile && sidebarOpen && /*#__PURE__*/ <div className="fixed inset-0 bg-black/40 z-30" onClick={() => setSidebarOpen(false)} />}
+      <Sidebar
+        view={view}
+        setView={setView}
+        counts={counts}
+        lists={lists}
+        onDeleteList={deleteList}
+        onRenameList={renameList}
+        onReEmojiList={reemojiList}
+        onRecolorList={(list) =>
+          setColorPicker({
+            id: list.id,
+            current: list.color,
+          })
+        }
+        onOpenCreate={() => setCreateOpen(true)}
+        search={search}
+        setSearch={setSearch}
+        onClose={() => setSidebarOpen(false)}
+        isMobile={isMobile}
+        open={sidebarOpen}
+        notifStatus={notifStatus}
+        onEnableNotif={enableNotif}
+        onTestNotif={testNotif}
+        dark={dark}
+        toggleTheme={toggleTheme}
+      />
+      {isMobile && <div
+        className={`fixed inset-0 bg-black/40 z-30 transition-opacity duration-300 ${sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+        onClick={() => setSidebarOpen(false)}
+      />}
       <main className="flex-1 flex flex-col min-w-0">
         <header className={`bg-gradient-to-r ${viewMeta.bg} text-white px-4 sm:px-6 py-5 flex items-center gap-3 safe-top safe-right`}>
           {isMobile && (
@@ -2880,6 +2868,14 @@ function App() {
             <div className="text-xl font-semibold leading-tight truncate">{viewMeta.title}</div>
             {viewMeta.sub && /*#__PURE__*/ <div className="text-xs opacity-80 capitalize truncate">{viewMeta.sub}</div>}
           </div>
+          {view.startsWith("list:") && (() => {
+            const hl = lists.find(l => l.id === view.slice(5));
+            return hl ? (
+              <button onClick={() => setColorPicker({ id: hl.id, current: hl.color })} className="p-2 rounded hover:bg-white/20" title="Цвет списка">
+                <L name="Palette" size={20} />
+              </button>
+            ) : null;
+          })()}
           {isMobile && (
             /*#__PURE__*/ <button onClick={() => setSearchOpen(true)} className="p-2 rounded hover:bg-white/20">
               <L name="Search" size={20} />

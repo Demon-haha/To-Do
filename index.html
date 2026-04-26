@@ -913,9 +913,11 @@ function MoveTaskModal({
       onClose();
     },
     className: `flex items-center gap-3 px-3 py-2.5 rounded text-left text-sm ${currentListId === null ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300" : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"}`
-  }, React.createElement("span", {
-    className: "text-lg"
-  }, "\uD83D\uDCE5"), React.createElement("span", null, "\u0411\u0435\u0437 \u0441\u043F\u0438\u0441\u043A\u0430")), lists.map(l => React.createElement("button", {
+  }, React.createElement(L, {
+    name: "Sun",
+    size: 18,
+    className: "text-yellow-500 shrink-0"
+  }), React.createElement("span", null, "\u0411\u0435\u0437 \u0441\u043F\u0438\u0441\u043A\u0430")), lists.map(l => React.createElement("button", {
     key: l.id,
     onClick: () => {
       onPick(l.id);
@@ -1194,17 +1196,17 @@ function TaskDetailPanel({
   }), newStep && React.createElement("button", {
     onClick: addStep,
     className: "text-xs text-blue-400 px-2"
-  }, "\u041E\u041A"))), React.createElement("button", {
+  }, "\u041E\u041A"))), React.createElement("div", {
     onClick: () => onUpdate(task.id, {
       myDay: !task.myDay
     }),
-    className: "w-full flex items-center gap-4 px-5 py-4 border-b border-gray-700/30 hover:bg-gray-800/30 transition-colors"
+    className: "cursor-pointer w-full flex items-center gap-4 px-5 py-4 border-b border-gray-700/30 hover:bg-gray-800/30 transition-colors"
   }, React.createElement(L, {
     name: "Sun",
     size: 20,
-    className: "text-gray-500"
+    className: task.myDay ? "text-yellow-400" : "text-gray-500"
   }), React.createElement("span", {
-    className: "text-sm flex-1 text-left text-gray-400"
+    className: `text-sm flex-1 text-left ${task.myDay ? "text-yellow-400" : "text-gray-400"}`
   }, task.myDay ? "Добавлено в «Мой день»" : "Добавить в «Мой день»"), task.myDay && React.createElement("button", {
     onClick: e => {
       e.stopPropagation();
@@ -1212,7 +1214,7 @@ function TaskDetailPanel({
         myDay: false
       });
     },
-    className: "p-1 text-gray-600 hover:text-gray-400"
+    className: "p-1 text-gray-600 hover:text-gray-400 rounded"
   }, React.createElement(L, {
     name: "X",
     size: 14
@@ -1896,6 +1898,7 @@ function Sidebar({
   setSearch,
   onClose,
   isMobile,
+  open,
   notifStatus,
   onEnableNotif,
   onTestNotif,
@@ -1917,7 +1920,8 @@ function Sidebar({
   }];
   return React.createElement("aside", {
     className: `sidebar-bg border-r border-gray-200 dark:border-gray-700/60 flex flex-col w-72 shrink-0
-        ${isMobile ? "fixed inset-y-0 left-0 z-40 shadow-2xl" : ""}`
+        ${isMobile ? "fixed inset-y-0 left-0 z-40 shadow-2xl transition-transform duration-300 ease-out" : ""}
+        ${isMobile && !open ? "-translate-x-full" : "translate-x-0"}`
   }, React.createElement("div", {
     className: "px-3 pt-3 pb-2 flex items-center justify-between gap-2 safe-top"
   }, React.createElement("div", {
@@ -2244,73 +2248,71 @@ function TaskComposer({
     name: "ArrowUp",
     size: 16
   }))), (value.trim() || hasAny) && React.createElement("div", {
-    className: "px-3 pb-2.5 flex items-center gap-1 border-t border-gray-100 dark:border-gray-700 pt-2"
-  }, React.createElement("button", {
+    className: "px-3 pb-2.5 flex items-center gap-1 flex-wrap border-t border-gray-100 dark:border-gray-700 pt-2"
+  }, pickedDate ? React.createElement("div", {
+    className: iconBtn(true)
+  }, React.createElement(L, {
+    name: "CalendarDays",
+    size: 14
+  }), React.createElement("span", {
+    onClick: onOpenCalendar,
+    className: "cursor-pointer"
+  }, formatDate(pickedDate)), React.createElement("span", {
+    onClick: onClearComposerDate,
+    className: "ml-0.5 hover:text-red-500 cursor-pointer"
+  }, React.createElement(L, {
+    name: "X",
+    size: 11
+  }))) : React.createElement("button", {
     onClick: onOpenCalendar,
     title: "\u0421\u0440\u043E\u043A \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u044F",
-    className: iconBtn(pickedDate)
+    className: iconBtn(false)
   }, React.createElement(L, {
     name: "CalendarDays",
     size: 14
-  }), React.createElement("span", null, "\u0421\u0440\u043E\u043A")), React.createElement("button", {
+  }), React.createElement("span", null, "\u0421\u0440\u043E\u043A")), pickedReminder ? React.createElement("div", {
+    className: iconBtn(true)
+  }, React.createElement(L, {
+    name: "Bell",
+    size: 14
+  }), React.createElement("span", {
+    onClick: onOpenReminder,
+    className: "cursor-pointer"
+  }, formatDate(pickedReminder)), React.createElement("span", {
+    onClick: onClearComposerReminder,
+    className: "ml-0.5 hover:text-red-500 cursor-pointer"
+  }, React.createElement(L, {
+    name: "X",
+    size: 11
+  }))) : React.createElement("button", {
     onClick: onOpenReminder,
     title: "\u041D\u0430\u043F\u043E\u043C\u043D\u0438\u0442\u044C \u043C\u043D\u0435",
-    className: iconBtn(pickedReminder)
+    className: iconBtn(false)
   }, React.createElement(L, {
     name: "Bell",
     size: 14
-  }), React.createElement("span", null, "\u041D\u0430\u043F\u043E\u043C\u043D\u0438\u0442\u044C")), React.createElement("button", {
+  }), React.createElement("span", null, "\u041D\u0430\u043F\u043E\u043C\u043D\u0438\u0442\u044C")), pickedRecurrence ? React.createElement("div", {
+    className: iconBtn(true)
+  }, React.createElement(L, {
+    name: "Repeat",
+    size: 14
+  }), React.createElement("span", {
+    onClick: onOpenRecurrence,
+    className: "cursor-pointer"
+  }, recurrenceLabel(pickedRecurrence)), React.createElement("span", {
+    onClick: onClearComposerRecurrence,
+    className: "ml-0.5 hover:text-red-500 cursor-pointer"
+  }, React.createElement(L, {
+    name: "X",
+    size: 11
+  }))) : React.createElement("button", {
     onClick: onOpenRecurrence,
     title: "\u041F\u043E\u0432\u0442\u043E\u0440\u0435\u043D\u0438\u0435 \u0437\u0430\u0434\u0430\u0447\u0438",
-    className: iconBtn(pickedRecurrence)
+    className: iconBtn(false)
   }, React.createElement(L, {
     name: "Repeat",
     size: 14
-  }), React.createElement("span", null, "\u041F\u043E\u0432\u0442\u043E\u0440"))), hasAny && React.createElement("div", {
-    className: "px-4 pb-2.5 flex items-center flex-wrap gap-x-3 gap-y-1 border-t border-gray-100 dark:border-gray-700 pt-2"
-  }, pickedDate && React.createElement("span", {
-    className: "flex items-center gap-1"
-  }, React.createElement(L, {
-    name: "CalendarDays",
-    size: 12,
-    className: "text-blue-500 shrink-0"
-  }), React.createElement("span", {
-    className: "text-xs text-blue-600 dark:text-blue-400"
-  }, formatDate(pickedDate)), React.createElement("button", {
-    onClick: onClearComposerDate,
-    className: "text-xs text-gray-400 hover:text-red-500 px-1"
-  }, React.createElement(L, {
-    name: "X",
-    size: 11
-  }))), pickedReminder && React.createElement("span", {
-    className: "flex items-center gap-1"
-  }, React.createElement(L, {
-    name: "Bell",
-    size: 12,
-    className: "text-blue-500 shrink-0"
-  }), React.createElement("span", {
-    className: "text-xs text-blue-600 dark:text-blue-400"
-  }, formatDate(pickedReminder)), React.createElement("button", {
-    onClick: onClearComposerReminder,
-    className: "text-xs text-gray-400 hover:text-red-500 px-1"
-  }, React.createElement(L, {
-    name: "X",
-    size: 11
-  }))), pickedRecurrence && React.createElement("span", {
-    className: "flex items-center gap-1"
-  }, React.createElement(L, {
-    name: "Repeat",
-    size: 12,
-    className: "text-blue-500 shrink-0"
-  }), React.createElement("span", {
-    className: "text-xs text-blue-600 dark:text-blue-400"
-  }, recurrenceLabel(pickedRecurrence)), React.createElement("button", {
-    onClick: onClearComposerRecurrence,
-    className: "text-xs text-gray-400 hover:text-red-500 px-1"
-  }, React.createElement(L, {
-    name: "X",
-    size: 11
-  })))))));
+  }), React.createElement("span", null, "\u041F\u043E\u0432\u0442\u043E\u0440"))))));
 }
 function App() {
   const [dark, toggleTheme] = useTheme();
@@ -2745,7 +2747,7 @@ function App() {
     className: "flex h-full w-full",
     onTouchStart: onSwipeStart,
     onTouchEnd: onSwipeEnd
-  }, (!isMobile || sidebarOpen) && React.createElement(Sidebar, {
+  }, React.createElement(Sidebar, {
     view: view,
     setView: setView,
     counts: counts,
@@ -2762,13 +2764,14 @@ function App() {
     setSearch: setSearch,
     onClose: () => setSidebarOpen(false),
     isMobile: isMobile,
+    open: sidebarOpen,
     notifStatus: notifStatus,
     onEnableNotif: enableNotif,
     onTestNotif: testNotif,
     dark: dark,
     toggleTheme: toggleTheme
-  }), isMobile && sidebarOpen && React.createElement("div", {
-    className: "fixed inset-0 bg-black/40 z-30",
+  }), isMobile && React.createElement("div", {
+    className: `fixed inset-0 bg-black/40 z-30 transition-opacity duration-300 ${sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`,
     onClick: () => setSidebarOpen(false)
   }), React.createElement("main", {
     className: "flex-1 flex flex-col min-w-0"
@@ -2786,7 +2789,20 @@ function App() {
     className: "text-xl font-semibold leading-tight truncate"
   }, viewMeta.title), viewMeta.sub && React.createElement("div", {
     className: "text-xs opacity-80 capitalize truncate"
-  }, viewMeta.sub)), isMobile && React.createElement("button", {
+  }, viewMeta.sub)), view.startsWith("list:") && (() => {
+    const hl = lists.find(l => l.id === view.slice(5));
+    return hl ? React.createElement("button", {
+      onClick: () => setColorPicker({
+        id: hl.id,
+        current: hl.color
+      }),
+      className: "p-2 rounded hover:bg-white/20",
+      title: "\u0426\u0432\u0435\u0442 \u0441\u043F\u0438\u0441\u043A\u0430"
+    }, React.createElement(L, {
+      name: "Palette",
+      size: 20
+    })) : null;
+  })(), isMobile && React.createElement("button", {
     onClick: () => setSearchOpen(true),
     className: "p-2 rounded hover:bg-white/20"
   }, React.createElement(L, {
