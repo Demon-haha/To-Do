@@ -23,16 +23,13 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config = { darkMode: "class" };</script>
 
-  <!-- jsDelivr надёжнее unpkg на мобильных сетях, версии зафиксированы -->
+  <!-- Все три либы с jsDelivr UMD: единый CDN, обычные скрипты, без ESM/import.
+       Раньше Lucide грузился с esm.sh ESM — на мобильных и в эмуляторе
+       (другой UA / иногда другая маршрутизация Cloudflare) пакет не доезжал,
+       и иконки рендерились пустыми квадратами. -->
   <script crossorigin src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
   <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
-  <script type="module">
-    try {
-      const mod = await import("https://esm.sh/lucide-react@0.445.0?deps=react@18");
-      window.Lucide = mod;
-    } catch(e) { window.Lucide = {}; }
-    window.dispatchEvent(new Event("lucide-ready"));
-  </script>
+  <script crossorigin src="https://cdn.jsdelivr.net/npm/lucide@0.445.0/dist/umd/lucide.min.js" onload="window.dispatchEvent(new Event('lucide-ready'))" onerror="window.Lucide={};window.dispatchEvent(new Event('lucide-ready'))"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
   <link rel="stylesheet" href="styles.css" />
@@ -556,25 +553,41 @@ function useReminders(tasks, onFire) {
     };
   }, [tasks, onFire]);
 }
+const _lucideLib = () => window.lucide || window.Lucide;
 const L = memo(function L({
   name,
-  ...p
+  size = 16,
+  className,
+  style
 }) {
-  const [, setReady] = useState(!!window.Lucide?.[name]);
+  const [, force] = useState(0);
   useEffect(() => {
-    if (window.Lucide?.[name]) return;
-    const onReady = () => setReady(true);
+    if (_lucideLib()?.[name]) return;
+    const onReady = () => force(n => n + 1);
     window.addEventListener("lucide-ready", onReady);
     return () => window.removeEventListener("lucide-ready", onReady);
   }, [name]);
-  const Icon = window.Lucide?.[name];
-  return Icon ? React.createElement(Icon, p) : React.createElement("span", {
-    style: {
-      width: p.size || 16,
-      height: p.size || 16,
-      display: "inline-block"
-    }
-  });
+  const node = _lucideLib()?.[name];
+  if (!node || !Array.isArray(node)) {
+    return React.createElement("span", {
+      style: {
+        width: size,
+        height: size,
+        display: "inline-block"
+      }
+    });
+  }
+  const [, defaults, children] = node;
+  return React.createElement("svg", {
+    ...defaults,
+    width: size,
+    height: size,
+    className,
+    style
+  }, (children || []).map(([tag, attrs], i) => React.createElement(tag, {
+    key: i,
+    ...attrs
+  })));
 });
 function ThemeToggle({
   dark,
@@ -2880,26 +2893,8 @@ function App() {
     }
   }));
 }
-let _mounted = false;
-function mount() {
-  if (_mounted) return;
-  if (!window.Lucide) {
-    window.addEventListener("lucide-ready", mount, {
-      once: true
-    });
-    return;
-  }
-  _mounted = true;
-  document.getElementById("app-loading")?.remove();
-  ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App, null));
-}
-setTimeout(() => {
-  if (!_mounted) {
-    window.Lucide = window.Lucide || {};
-    mount();
-  }
-}, 4000);
-mount();
+document.getElementById("app-loading")?.remove();
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App, null));
 </script>
 </body>
 </html>

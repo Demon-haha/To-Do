@@ -566,28 +566,36 @@ function useReminders(tasks, onFire) {
 }
 
 // ─── ИКОНКА ───────────────────────────────────────────────────────
-// Lucide может прийти позже, чем смонтировалось приложение (медленные мобильные
-// сети, блокировки CDN). Подписываемся на lucide-ready и перерисовываем иконки,
-// иначе они навсегда останутся пустыми квадратами.
-const L = memo(function L({ name, ...p }) {
-  const [, setReady] = useState(!!window.Lucide?.[name]);
+// Vanilla lucide UMD кладёт каждую иконку в window.lucide как тройку
+// [tag, attrs, [[childTag, childAttrs], ...]]. Из неё руками собираем SVG.
+// Если скрипт ещё не успел загрузиться — ждём событие lucide-ready и
+// перерисовываемся.
+const _lucideLib = () => window.lucide || window.Lucide;
+const L = memo(function L({ name, size = 16, className, style }) {
+  const [, force] = useState(0);
   useEffect(() => {
-    if (window.Lucide?.[name]) return;
-    const onReady = () => setReady(true);
+    if (_lucideLib()?.[name]) return;
+    const onReady = () => force((n) => n + 1);
     window.addEventListener("lucide-ready", onReady);
     return () => window.removeEventListener("lucide-ready", onReady);
   }, [name]);
-  const Icon = window.Lucide?.[name];
-  return Icon ? (
-    /*#__PURE__*/ <Icon {...p} />
-  ) : (
-    /*#__PURE__*/ <span
-      style={{
-        width: p.size || 16,
-        height: p.size || 16,
-        display: "inline-block",
-      }}
-    />
+  const node = _lucideLib()?.[name];
+  if (!node || !Array.isArray(node)) {
+    return /*#__PURE__*/ <span style={{ width: size, height: size, display: "inline-block" }} />;
+  }
+  const [, defaults, children] = node;
+  return /*#__PURE__*/ React.createElement(
+    "svg",
+    {
+      ...defaults,
+      width: size,
+      height: size,
+      className,
+      style,
+    },
+    (children || []).map(([tag, attrs], i) =>
+      React.createElement(tag, { key: i, ...attrs })
+    )
   );
 });
 
@@ -3009,25 +3017,8 @@ function App() {
     </div>
   );
 }
-let _mounted = false;
-function mount() {
-  if (_mounted) return;
-  if (!window.Lucide) {
-    window.addEventListener("lucide-ready", mount, {
-      once: true,
-    });
-    return;
-  }
-  _mounted = true;
-  document.getElementById("app-loading")?.remove();
-  ReactDOM.createRoot(document.getElementById("root")).render(/*#__PURE__*/ <App />);
-}
-// Если Lucide не пришёл за 4 сек — запускаем без иконок. Когда модуль всё-таки
-// загрузится, подписчики L получат lucide-ready и перерисуются.
-setTimeout(() => {
-  if (!_mounted) {
-    window.Lucide = window.Lucide || {};
-    mount();
-  }
-}, 4000);
-mount();
+// Иконки теперь грузятся обычным <script> тегом из template.html и блокируют
+// рендер до завершения. Если ассета не будет (нет интернета) — onerror в
+// template.html выдаст событие lucide-ready, и L просто покажет пустые квадраты.
+document.getElementById("app-loading")?.remove();
+ReactDOM.createRoot(document.getElementById("root")).render(/*#__PURE__*/ <App />);

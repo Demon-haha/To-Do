@@ -23,16 +23,13 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config = { darkMode: "class" };</script>
 
-  <!-- jsDelivr надёжнее unpkg на мобильных сетях, версии зафиксированы -->
+  <!-- Все три либы с jsDelivr UMD: единый CDN, обычные скрипты, без ESM/import.
+       Раньше Lucide грузился с esm.sh ESM — на мобильных и в эмуляторе
+       (другой UA / иногда другая маршрутизация Cloudflare) пакет не доезжал,
+       и иконки рендерились пустыми квадратами. -->
   <script crossorigin src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
   <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
-  <script type="module">
-    try {
-      const mod = await import("https://esm.sh/lucide-react@0.445.0?deps=react@18");
-      window.Lucide = mod;
-    } catch(e) { window.Lucide = {}; }
-    window.dispatchEvent(new Event("lucide-ready"));
-  </script>
+  <script crossorigin src="https://cdn.jsdelivr.net/npm/lucide@0.445.0/dist/umd/lucide.min.js" onload="window.dispatchEvent(new Event('lucide-ready'))" onerror="window.Lucide={};window.dispatchEvent(new Event('lucide-ready'))"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
   <link rel="stylesheet" href="styles.css" />
