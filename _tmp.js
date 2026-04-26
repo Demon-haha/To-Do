@@ -1,18 +1,4 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>To Do — список задач</title>
-  <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#2563eb" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="To Do" />
-  <link rel="icon" href="https://cdn-icons-png.flaticon.com/128/2387/2387635.png" />
-  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/128/2387/2387635.png" />
 
-  <script>
     try {
       if (localStorage.getItem("mstodo_theme") === "dark") {
         document.documentElement.classList.add("dark");
@@ -2900,6 +2886,3 @@ setTimeout(() => {
   }
 }, 4000);
 mount();
-</script>
-</body>
-</html>

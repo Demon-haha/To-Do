@@ -566,7 +566,17 @@ function useReminders(tasks, onFire) {
 }
 
 // ─── ИКОНКА ───────────────────────────────────────────────────────
+// Lucide может прийти позже, чем смонтировалось приложение (медленные мобильные
+// сети, блокировки CDN). Подписываемся на lucide-ready и перерисовываем иконки,
+// иначе они навсегда останутся пустыми квадратами.
 const L = memo(function L({ name, ...p }) {
+  const [, setReady] = useState(!!window.Lucide?.[name]);
+  useEffect(() => {
+    if (window.Lucide?.[name]) return;
+    const onReady = () => setReady(true);
+    window.addEventListener("lucide-ready", onReady);
+    return () => window.removeEventListener("lucide-ready", onReady);
+  }, [name]);
   const Icon = window.Lucide?.[name];
   return Icon ? (
     /*#__PURE__*/ <Icon {...p} />
@@ -588,7 +598,7 @@ function ThemeToggle({ dark, toggle }) {
       onClick={toggle}
       title={dark ? "Светлая тема" : "Тёмная тема"}
       className={`theme-track flex-shrink-0 ${dark ? "dark-mode" : "light-mode"}`}
-      aria-label="\u041F\u0435\u0440\u0435\u043A\u043B\u044E\u0447\u0438\u0442\u044C \u0442\u0435\u043C\u0443">
+      aria-label="Переключить тему">
       <div className="theme-thumb">
         {dark ? (
           /*#__PURE__*/ <L
@@ -669,7 +679,7 @@ function CreateListModal({ open, onClose, onCreate }) {
   const iCls =
     "w-full text-sm rounded px-3 py-2 focus:outline-none border bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-400 placeholder:text-gray-400 dark:placeholder:text-gray-500";
   return (
-    /*#__PURE__*/ <Modal open={open} onClose={onClose} title="\u041D\u043E\u0432\u044B\u0439 \u0441\u043F\u0438\u0441\u043E\u043A">
+    /*#__PURE__*/ <Modal open={open} onClose={onClose} title="Новый список">
       <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Название</label>
       <input
         ref={inputRef}
@@ -678,7 +688,7 @@ function CreateListModal({ open, onClose, onCreate }) {
         onKeyDown={(e) => {
           if (e.key === "Enter") submit();
         }}
-        placeholder="\u041D\u0430\u043F\u0440\u0438\u043C\u0435\u0440: \u041F\u043E\u043A\u0443\u043F\u043A\u0438"
+        placeholder="Например: Покупки"
         className={iCls + " mb-4"}
       />
       <label className="block text-xs text-gray-600 dark:text-gray-400 mb-2">Эмодзи</label>
@@ -699,7 +709,7 @@ function CreateListModal({ open, onClose, onCreate }) {
         value={custom}
         onChange={(e) => setCustom(e.target.value)}
         maxLength={4}
-        placeholder="\u0418\u043B\u0438 \u0432\u0441\u0442\u0430\u0432\u044C\u0442\u0435 \u0441\u0432\u043E\u0439 \u044D\u043C\u043E\u0434\u0437\u0438"
+        placeholder="Или вставьте свой эмодзи"
         className={iCls + " mb-4"}
       />
       <label className="block text-xs text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-1.5">
@@ -731,7 +741,7 @@ function CreateListModal({ open, onClose, onCreate }) {
 // ─── MODAL: ЦВЕТ СПИСКА ───────────────────────────────────────────
 function ColorPickerModal({ open, onClose, current, onPick }) {
   return (
-    /*#__PURE__*/ <Modal open={open} onClose={onClose} title="\u0426\u0432\u0435\u0442 \u0441\u043F\u0438\u0441\u043A\u0430">
+    /*#__PURE__*/ <Modal open={open} onClose={onClose} title="Цвет списка">
       <div className="grid grid-cols-5 gap-2 mb-4">
         {COLOR_BANK.map((c) => (
           /*#__PURE__*/ <button
@@ -885,7 +895,7 @@ function DatePickerModal({ open, onClose, onPick, initial, showTime = true }) {
 // ─── MODAL: ПЕРЕМЕСТИТЬ ЗАДАЧУ ────────────────────────────────────
 function MoveTaskModal({ open, onClose, lists, currentListId, onPick }) {
   return (
-    /*#__PURE__*/ <Modal open={open} onClose={onClose} title="\u041F\u0435\u0440\u0435\u043C\u0435\u0441\u0442\u0438\u0442\u044C \u0437\u0430\u0434\u0430\u0447\u0443">
+    /*#__PURE__*/ <Modal open={open} onClose={onClose} title="Переместить задачу">
       <div className="flex flex-col gap-1 max-h-80 overflow-y-auto scroll-thin">
         <button
           onClick={() => {
@@ -1173,7 +1183,7 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
                 onKeyDown={(e) => {
                   if (e.key === "Enter") addStep();
                 }}
-                placeholder="\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0448\u0430\u0433"
+                placeholder="Добавить шаг"
                 className="flex-1 bg-transparent text-sm text-gray-300 outline-none placeholder:text-gray-600"
               />
               {newStep && (
@@ -1299,7 +1309,7 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
                   notes: e.target.value,
                 })
               }
-              placeholder="\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0437\u0430\u043C\u0435\u0442\u043A\u0443"
+              placeholder="Добавить заметку"
               className="w-full bg-transparent text-sm text-gray-400 placeholder:text-gray-600 outline-none resize-none min-h-[80px]"
               rows={3}
             />
@@ -1352,7 +1362,7 @@ function SearchOverlay({ search, setSearch, onClose, tasks, lists, nowTs, onOpen
           ref={inputRef}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="\u041F\u043E\u0438\u0441\u043A"
+          placeholder="Поиск"
           className="flex-1 bg-transparent text-base text-gray-100 outline-none placeholder:text-gray-500"
         />
         {search && (
@@ -1458,7 +1468,7 @@ function ReminderModal({ open, onClose, onPick, current }) {
     if (custom) pick(new Date(custom).toISOString());
   };
   return (
-    /*#__PURE__*/ <Modal open={open} onClose={onClose} title="\u041D\u0430\u043F\u043E\u043C\u043D\u0438\u0442\u044C \u043C\u043D\u0435" closeOnOverlay={false}>
+    /*#__PURE__*/ <Modal open={open} onClose={onClose} title="Напомнить мне" closeOnOverlay={false}>
       {p.laterToday && (
         /*#__PURE__*/ <button onClick={() => pick(p.laterToday)} className={row}>
           <L name="Clock" size={18} className="text-gray-500 dark:text-gray-400" />
@@ -1541,7 +1551,7 @@ function RecurrenceModal({ open, onClose, onPick, onOpenCustom, current }) {
     },
   ];
   return (
-    /*#__PURE__*/ <Modal open={open} onClose={onClose} title="\u041F\u043E\u0432\u0442\u043E\u0440">
+    /*#__PURE__*/ <Modal open={open} onClose={onClose} title="Повтор">
       {items.map((it) => (
         /*#__PURE__*/ <button
           key={it.type}
@@ -1614,7 +1624,7 @@ function CustomRecurrenceModal({ open, onClose, onPick, initial }) {
     onClose();
   };
   return (
-    /*#__PURE__*/ <Modal open={open} onClose={onClose} title="\u041D\u0430\u0441\u0442\u0440\u043E\u0438\u0442\u044C \u043F\u043E\u0432\u0442\u043E\u0440">
+    /*#__PURE__*/ <Modal open={open} onClose={onClose} title="Настроить повтор">
       <div className="text-sm text-gray-700 dark:text-gray-300 mb-3">Повторять каждые:</div>
       <div className="flex gap-2 mb-4">
         <input
@@ -1766,7 +1776,7 @@ function ListRow({ list, active, count, onSelect, onDelete, onRename, onRecolor,
                 onRecolor?.(list);
               }}
               className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-              title="\u0426\u0432\u0435\u0442">
+              title="Цвет">
               <L name="Palette" size={13} />
             </button>
             <button
@@ -1775,7 +1785,7 @@ function ListRow({ list, active, count, onSelect, onDelete, onRename, onRecolor,
                 setEditing(true);
               }}
               className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-              title="\u041F\u0435\u0440\u0435\u0438\u043C\u0435\u043D\u043E\u0432\u0430\u0442\u044C">
+              title="Переименовать">
               <L name="Pencil" size={13} />
             </button>
             <button
@@ -1859,7 +1869,7 @@ function Sidebar({
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="\u041F\u043E\u0438\u0441\u043A \u0437\u0430\u0434\u0430\u0447"
+              placeholder="Поиск задач"
               className="w-full text-sm rounded-md pl-8 pr-8 py-2 focus:outline-none border bg-white/70 dark:bg-gray-800/60 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:bg-white dark:focus:bg-gray-800 focus:border-blue-400"
             />
             {search && (
@@ -1989,7 +1999,7 @@ const TaskRow = memo(function TaskRow({ task, showListEmoji, listEmoji, nowTs, i
         <button
           onClick={() => onToggle(task.id)}
           className="task-check-btn relative w-6 h-6 shrink-0 flex items-center justify-center"
-          title="\u041E\u0442\u043C\u0435\u0442\u0438\u0442\u044C \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u043D\u043E\u0439">
+          title="Отметить выполненной">
           <span
             className={`absolute inset-0 rounded-full border-2 flex items-center justify-center transition-all duration-200
               ${task.completed ? "bg-blue-600 border-blue-600 opacity-100" : "border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-500"}
@@ -2138,20 +2148,20 @@ function TaskComposer({
               submit();
             }
           }}
-          placeholder="\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0437\u0430\u0434\u0430\u0447\u0443"
+          placeholder="Добавить задачу"
           className="flex-1 min-w-0 bg-transparent outline-none text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 resize-none overflow-hidden leading-5"
         />
       </div>
       {(value.trim() || hasAny) && (
         /*#__PURE__*/ <div className="px-3 pb-2.5 flex items-center justify-between gap-2 border-t border-gray-100 dark:border-gray-700 pt-2">
           <div className="flex items-center gap-0.5">
-            <button onClick={onOpenCalendar} title="\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u0441\u0440\u043E\u043A" className={iconBtn(pickedDate)}>
+            <button onClick={onOpenCalendar} title="Установить срок" className={iconBtn(pickedDate)}>
               <L name="CalendarDays" size={16} />
             </button>
-            <button onClick={onOpenReminder} title="\u041D\u0430\u043F\u043E\u043C\u043D\u0438\u0442\u044C \u043C\u043D\u0435" className={iconBtn(pickedReminder)}>
+            <button onClick={onOpenReminder} title="Напомнить мне" className={iconBtn(pickedReminder)}>
               <L name="AlarmClock" size={16} />
             </button>
-            <button onClick={onOpenRecurrence} title="\u041F\u043E\u0432\u0442\u043E\u0440" className={iconBtn(pickedRecurrence)}>
+            <button onClick={onOpenRecurrence} title="Повтор" className={iconBtn(pickedRecurrence)}>
               <L name="Repeat" size={16} />
             </button>
           </div>
@@ -2999,20 +3009,24 @@ function App() {
     </div>
   );
 }
+let _mounted = false;
 function mount() {
+  if (_mounted) return;
   if (!window.Lucide) {
     window.addEventListener("lucide-ready", mount, {
       once: true,
     });
     return;
   }
+  _mounted = true;
   document.getElementById("app-loading")?.remove();
   ReactDOM.createRoot(document.getElementById("root")).render(/*#__PURE__*/ <App />);
 }
-// Если Lucide не пришёл за 4 сек — запускаем без иконок (раньше было 8)
+// Если Lucide не пришёл за 4 сек — запускаем без иконок. Когда модуль всё-таки
+// загрузится, подписчики L получат lucide-ready и перерисуются.
 setTimeout(() => {
-  if (!window.Lucide) {
-    window.Lucide = {};
+  if (!_mounted) {
+    window.Lucide = window.Lucide || {};
     mount();
   }
 }, 4000);
