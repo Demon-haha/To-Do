@@ -28,9 +28,9 @@ const COLOR_BANK = [
     gradient: "from-emerald-600 to-teal-700",
   },
   {
-    id: "blue",
-    label: "Синий",
-    gradient: "from-blue-600 to-indigo-700",
+    id: "brown",
+    label: "Шоколадный",
+    gradient: "from-stone-600 to-amber-900",
   },
   {
     id: "purple",
@@ -48,14 +48,14 @@ const COLOR_BANK = [
     gradient: "from-red-600 to-rose-700",
   },
   {
-    id: "orange",
-    label: "Оранжевый",
-    gradient: "from-orange-500 to-amber-600",
+    id: "gold",
+    label: "Золотой",
+    gradient: "from-amber-400 to-yellow-400",
   },
   {
-    id: "yellow",
-    label: "Жёлтый",
-    gradient: "from-yellow-500 to-orange-500",
+    id: "lime",
+    label: "Лаймовый",
+    gradient: "from-lime-500 to-lime-700",
   },
   {
     id: "green",
@@ -1086,9 +1086,9 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
             </div>
             <button
               onClick={() => onStar(task.id)}
-              className={`p-1 mt-0.5 shrink-0 ${task.important ? "text-yellow-400" : "text-gray-600 hover:text-gray-400"}`}
+              className={`p-1 mt-0.5 shrink-0 ${task.important ? "text-yellow-400 star-active" : "text-gray-600 hover:text-gray-400"}`}
               style={task.important ? {filter: "drop-shadow(0 0 7px rgba(251,191,36,0.9))"} : undefined}>
-              <L name="Star" size={22} fill={task.important ? "currentColor" : "none"} strokeWidth={task.important ? 0 : 2} />
+              <L name="Star" size={22} fill={task.important ? "currentColor" : "none"} />
             </button>
           </div>
           <div className="border-b border-gray-700/30">
@@ -1728,9 +1728,10 @@ function ContextMenu({ ctx, onClose, actions }) {
 }
 
 // ─── СТРОКА СПИСКА В САЙДБАРЕ ─────────────────────────────────────
-function ListRow({ list, active, count, onSelect, onDelete, onRename, onRecolor, isMobile, onClose }) {
+function ListRow({ list, active, count, onSelect, onDelete, onRename, onRecolor, onReEmoji, isMobile, onClose }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(list.name);
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const inputRef = useRef(null);
   useEffect(() => setValue(list.name), [list.name]);
   useEffect(() => {
@@ -1749,8 +1750,39 @@ function ListRow({ list, active, count, onSelect, onDelete, onRename, onRecolor,
     /*#__PURE__*/ <div
       className={`group relative mb-0.5 rounded-md transition-colors border
         ${active ? "bg-white dark:bg-gray-800/80 shadow-sm border-gray-200 dark:border-gray-700" : "hover:bg-white/70 dark:hover:bg-gray-800/50 border-transparent"}`}>
+      {emojiOpen && (
+        /*#__PURE__*/ <div className="absolute left-0 bottom-full mb-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-2 w-56">
+          <div className="grid grid-cols-8 gap-1 mb-1">
+            {EMOJI_BANK.map((e) => (
+              /*#__PURE__*/ <button
+                key={e}
+                onClick={(ev) => { ev.stopPropagation(); onReEmoji?.(list.id, e); setEmojiOpen(false); }}
+                className="text-lg hover:bg-gray-100 dark:hover:bg-gray-700 rounded p-0.5 transition-colors">
+                {e}
+              </button>
+            ))}
+          </div>
+          <input
+            placeholder="Свой эмодзи…"
+            className="w-full text-sm bg-gray-50 dark:bg-gray-700 rounded px-2 py-1 outline-none border border-gray-200 dark:border-gray-600"
+            onKeyDown={(ev) => {
+              if (ev.key === "Enter") {
+                const v = ev.target.value.trim();
+                if (v) { onReEmoji?.(list.id, v); setEmojiOpen(false); }
+              }
+              ev.stopPropagation();
+            }}
+            onClick={(ev) => ev.stopPropagation()}
+          />
+        </div>
+      )}
       <div className="flex items-center gap-3 px-3 py-2 text-sm">
-        <span className="text-base leading-none w-5 text-center shrink-0">{list.emoji || DEFAULT_EMOJI}</span>
+        <button
+          onClick={(e) => { e.stopPropagation(); setEmojiOpen((o) => !o); }}
+          className="text-base leading-none w-5 text-center shrink-0 hover:scale-110 transition-transform"
+          title="Изменить эмодзи">
+          {list.emoji || DEFAULT_EMOJI}
+        </button>
         {editing ? (
           /*#__PURE__*/ <input
             ref={inputRef}
@@ -1823,6 +1855,7 @@ function Sidebar({
   onDeleteList,
   onRenameList,
   onRecolorList,
+  onReEmojiList,
   onOpenCreate,
   search,
   setSearch,
@@ -1928,6 +1961,7 @@ function Sidebar({
             onDelete={onDeleteList}
             onRename={onRenameList}
             onRecolor={onRecolorList}
+            onReEmoji={onReEmojiList}
             isMobile={isMobile}
             onClose={onClose}
           />
@@ -2079,9 +2113,9 @@ const TaskRow = memo(function TaskRow({ task, showListEmoji, listEmoji, nowTs, i
         </div>
         <button
           onClick={() => onStar(task.id)}
-          className={`p-2 rounded transition-colors ${task.important ? "text-yellow-400" : "text-gray-400 dark:text-gray-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"}`}
+          className={`p-2 rounded transition-colors ${task.important ? "text-yellow-400 star-active" : "text-gray-400 dark:text-gray-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"}`}
           style={task.important ? {filter: "drop-shadow(0 0 5px rgba(251,191,36,0.85))"} : undefined}>
-          <L name="Star" size={18} fill={task.important ? "currentColor" : "none"} strokeWidth={task.important ? 0 : 2} />
+          <L name="Star" size={18} fill={task.important ? "currentColor" : "none"} />
         </button>
       </div>
     </div>
@@ -2101,6 +2135,7 @@ function TaskComposer({
   onClearComposerReminder,
   onClearComposerRecurrence,
   isMobile,
+  sidebarOpen,
 }) {
   const [value, setValue] = useState("");
   const [fabOpen, setFabOpen] = useState(false);
@@ -2134,6 +2169,7 @@ function TaskComposer({
 
   // Мобильный режим — FAB (свёрнутый кружок)
   if (isMobile && !fabOpen) {
+    if (sidebarOpen) return null;
     return (
       /*#__PURE__*/ <button
         onClick={openFab}
@@ -2508,6 +2544,10 @@ function App() {
       ),
     [setLists]
   );
+  const reemojiList = useCallback(
+    (id, emoji) => setLists((p) => p.map((l) => (l.id === id ? { ...l, emoji } : l))),
+    [setLists]
+  );
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = q
@@ -2774,7 +2814,7 @@ function App() {
       important: {
         title: "Важное",
         sub: "Задачи, отмеченные звёздочкой",
-        bg: "from-amber-800 to-orange-900",
+        bg: "from-yellow-500 to-amber-500",
       },
       planned: {
         title: "Запланировано",
@@ -2783,8 +2823,24 @@ function App() {
       },
     }[view];
   }, [view, lists, search, filtered.length]);
+  const swipeRef = useRef(null);
+  const onSwipeStart = useCallback((e) => {
+    const t = e.touches[0];
+    swipeRef.current = { x: t.clientX, y: t.clientY };
+  }, []);
+  const onSwipeEnd = useCallback((e) => {
+    if (!swipeRef.current) return;
+    const start = swipeRef.current;
+    swipeRef.current = null;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (Math.abs(dy) > Math.abs(dx) * 1.5) return;
+    if (dx > 50 && !sidebarOpen && start.x < 40) setSidebarOpen(true);
+    if (dx < -50 && sidebarOpen) setSidebarOpen(false);
+  }, [sidebarOpen]);
   return (
-    /*#__PURE__*/ <div className="flex h-full w-full">
+    /*#__PURE__*/ <div className="flex h-full w-full" onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd}>
       {(!isMobile || sidebarOpen) && (
         /*#__PURE__*/ <Sidebar
           view={view}
@@ -2793,6 +2849,7 @@ function App() {
           lists={lists}
           onDeleteList={deleteList}
           onRenameList={renameList}
+          onReEmojiList={reemojiList}
           onRecolorList={(list) =>
             setColorPicker({
               id: list.id,
@@ -2882,6 +2939,7 @@ function App() {
           isMobile ? (
             /*#__PURE__*/ <TaskComposer
               isMobile={true}
+              sidebarOpen={sidebarOpen}
               onAdd={addTask}
               pickedDate={composerDate}
               pickedReminder={composerReminder}

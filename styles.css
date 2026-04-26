@@ -113,6 +113,10 @@ button, .no-select { -webkit-user-select: none; user-select: none; }
   -webkit-touch-callout: none;
 }
 
+/* Звезда: в светлой теме — полная заливка, в тёмной — обводка */
+.star-active svg { fill: currentColor !important; stroke-width: 0 !important; }
+html.dark .star-active svg { fill: none !important; stroke-width: 2px !important; }
+
 /* 11. Спиннер загрузки */
 @keyframes _spin { to { transform: rotate(360deg); } }
 
