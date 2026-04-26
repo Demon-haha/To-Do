@@ -1,37 +1,34 @@
+// Build pipeline: app.jsx → JSX-compile → inject into template.html → write index.html
 const fs = require('fs');
 const babel = require('@babel/core');
 
-const html = fs.readFileSync('index.html', 'utf8');
+console.log('🔨 Building...');
 
-// Extract the text/babel script content
-const match = html.match(/<script type="text\/babel"[^>]*>([\s\S]*?)<\/script>/);
-if (!match) { console.error('Babel script not found!'); process.exit(1); }
+// 1. Read source JSX
+const jsx = fs.readFileSync('app.jsx', 'utf8');
+console.log('  ├─ app.jsx:', jsx.length, 'chars');
 
-const jsxCode = match[1];
-
-// Compile JSX → plain JS (classic React.createElement, no imports)
-const result = babel.transformSync(jsxCode, {
-  plugins: [
-    ['@babel/plugin-transform-react-jsx', { runtime: 'classic' }]
-  ],
+// 2. Compile JSX → plain JS (classic React.createElement)
+const result = babel.transformSync(jsx, {
+  plugins: [['@babel/plugin-transform-react-jsx', { runtime: 'classic' }]],
   sourceType: 'script',
+  babelrc: false,
+  configFile: false,
+  comments: false, // strip comments — saves ~5–10KB in output
 });
 
 const compiled = result.code;
+console.log('  ├─ Compiled →', compiled.length, 'chars JS');
 
-// Replace <script type="text/babel"...>...</script> with <script>compiled</script>
-// Also remove the Babel CDN <script> tag
-let output = html.replace(
-  /<script type="text\/babel"[^>]*>[\s\S]*?<\/script>/,
-  `<script>\n${compiled}\n</script>`
-);
+// 3. Read template & inject compiled code
+const tpl = fs.readFileSync('template.html', 'utf8');
+if (!tpl.includes('{{COMPILED_APP}}')) {
+  console.error('❌ template.html missing {{COMPILED_APP}} placeholder');
+  process.exit(1);
+}
+const html = tpl.replace('{{COMPILED_APP}}', '\n' + compiled + '\n');
+console.log('  └─ index.html:', html.length, 'chars');
 
-// Remove Babel standalone CDN script tag
-output = output.replace(
-  /\s*<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/@babel\/standalone[^"]*"><\/script>\n?/,
-  '\n'
-);
-
-fs.writeFileSync('index.html', output, 'utf8');
-console.log('Done! Compiled', jsxCode.length, 'chars JSX →', compiled.length, 'chars JS');
-console.log('Babel CDN removed from index.html');
+// 4. Write output
+fs.writeFileSync('index.html', html, 'utf8');
+console.log('✅ Done!');
