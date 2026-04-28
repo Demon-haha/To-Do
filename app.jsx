@@ -1057,6 +1057,7 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
   const [viewFile, setViewFile] = useState(null);
   const fileInput = useRef(null);
   const titleRef = useRef(null);
+  const swipeDownRef = useRef(null);
   useEffect(() => {
     if (task) setTitleVal(task.title);
   }, [task?.title]);
@@ -1067,8 +1068,23 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
   const steps = task.steps || [];
   const files = task.files || [];
   const list = lists.find((l) => l.id === task.listId);
+  const myDayLocked = !!task.myDayLocked;
   const dateOverdue = task.dueDate && !task.completed && new Date(task.dueDate) < new Date(nowTs);
   const reminderOverdue = task.reminder && !task.completed && new Date(task.reminder) < new Date(nowTs);
+  const onPanelTouchStart = (e) => {
+    if (!isMobile) return;
+    const t = e.touches[0];
+    swipeDownRef.current = { x: t.clientX, y: t.clientY };
+  };
+  const onPanelTouchEnd = (e) => {
+    if (!isMobile || !swipeDownRef.current) return;
+    const start = swipeDownRef.current;
+    swipeDownRef.current = null;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (start.y < 140 && dy > 70 && Math.abs(dx) < 80) onClose();
+  };
   const commitTitle = () => {
     const v = titleVal.trim();
     if (v && v !== task.title)
@@ -1126,6 +1142,8 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
       {!isMobile && /*#__PURE__*/ <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />}
       <div
         className={panelCls}
+        onTouchStart={onPanelTouchStart}
+        onTouchEnd={onPanelTouchEnd}
         style={{
           animation: "slideUp .2s ease-out",
         }}>
@@ -1288,11 +1306,13 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
             </div>
           </div>
           <div
-            onClick={() => onUpdate(task.id, { myDay: !task.myDay })}
-            className="cursor-pointer w-full flex items-center gap-4 px-5 py-4 border-b border-gray-700/30 hover:bg-gray-800/30 transition-colors">
+            onClick={() => {
+              if (!myDayLocked) onUpdate(task.id, { myDay: !task.myDay });
+            }}
+            className={`w-full flex items-center gap-4 px-5 py-4 border-b border-gray-700/30 transition-colors ${myDayLocked ? "cursor-default" : "cursor-pointer hover:bg-gray-800/30"}`}>
             <L name="Sun" size={20} className={task.myDay ? "text-yellow-400" : "text-gray-500"} />
             <span className={`text-sm flex-1 text-left ${task.myDay ? "text-yellow-400" : "text-gray-400"}`}>{task.myDay ? "Добавлено в «Мой день»" : "Добавить в «Мой день»"}</span>
-            {task.myDay && (
+            {task.myDay && !myDayLocked && (
               <button
                 onClick={(e) => { e.stopPropagation(); onUpdate(task.id, { myDay: false }); }}
                 className="p-1 text-gray-600 hover:text-gray-400 rounded">
@@ -1803,7 +1823,7 @@ function ContextMenu({ ctx, onClose, actions }) {
 }
 
 // ─── СТРОКА СПИСКА В САЙДБАРЕ ─────────────────────────────────────
-function ListRow({ list, active, count, onSelect, onDelete, onRename, onRecolor, onReEmoji, isMobile, onClose }) {
+function ListRow({ list, active, count, onSelect, onDelete, onRename, onReEmoji, isMobile, onClose }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(list.name);
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -1826,20 +1846,26 @@ function ListRow({ list, active, count, onSelect, onDelete, onRename, onRecolor,
       className={`group relative mb-0.5 rounded-md transition-colors border
         ${active ? "bg-white dark:bg-gray-800/80 shadow-sm border-gray-200 dark:border-gray-700" : "hover:bg-white/70 dark:hover:bg-gray-800/50 border-transparent"}`}>
       {emojiOpen && (
-        /*#__PURE__*/ <div className="absolute left-0 bottom-full mb-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-2 w-56">
-          <div className="grid grid-cols-8 gap-1 mb-1">
+        /*#__PURE__*/ <div
+          className={
+            isMobile
+              ? "fixed inset-x-0 bottom-0 z-[80] rounded-t-2xl bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-2xl p-4 safe-bottom"
+              : "absolute left-0 bottom-full mb-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-2 w-56"
+          }>
+          {isMobile && <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-300 dark:bg-gray-600" />}
+          <div className={`grid ${isMobile ? "grid-cols-6 gap-2" : "grid-cols-8 gap-1"} mb-3`}>
             {EMOJI_BANK.map((e) => (
               /*#__PURE__*/ <button
                 key={e}
                 onClick={(ev) => { ev.stopPropagation(); onReEmoji?.(list.id, e); setEmojiOpen(false); }}
-                className="text-lg hover:bg-gray-100 dark:hover:bg-gray-700 rounded p-0.5 transition-colors">
+                className={`${isMobile ? "h-11 text-2xl" : "text-lg p-0.5"} hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors`}>
                 {e}
               </button>
             ))}
           </div>
           <input
             placeholder="Свой эмодзи…"
-            className="w-full text-sm bg-gray-50 dark:bg-gray-700 rounded px-2 py-1 outline-none border border-gray-200 dark:border-gray-600"
+            className="w-full text-sm bg-gray-50 dark:bg-gray-700 rounded px-3 py-2 outline-none border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100"
             onKeyDown={(ev) => {
               if (ev.key === "Enter") {
                 const v = ev.target.value.trim();
@@ -1849,6 +1875,11 @@ function ListRow({ list, active, count, onSelect, onDelete, onRename, onRecolor,
             }}
             onClick={(ev) => ev.stopPropagation()}
           />
+          {isMobile && (
+            <button onClick={(ev) => { ev.stopPropagation(); setEmojiOpen(false); }} className="mt-3 w-full rounded bg-gray-100 dark:bg-gray-700 px-3 py-2 text-sm text-gray-700 dark:text-gray-200">
+              Готово
+            </button>
+          )}
         </div>
       )}
       <div className="flex items-center gap-3 px-3 py-2 text-sm">
@@ -1891,15 +1922,6 @@ function ListRow({ list, active, count, onSelect, onDelete, onRename, onRecolor,
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onRecolor?.(list);
-              }}
-              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-              title="Цвет">
-              <L name="Palette" size={13} />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
                 setEditing(true);
               }}
               className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
@@ -1929,7 +1951,6 @@ function Sidebar({
   lists,
   onDeleteList,
   onRenameList,
-  onRecolorList,
   onReEmojiList,
   onOpenCreate,
   search,
@@ -2037,7 +2058,6 @@ function Sidebar({
             }}
             onDelete={onDeleteList}
             onRename={onRenameList}
-            onRecolor={onRecolorList}
             onReEmoji={onReEmojiList}
             isMobile={isMobile}
             onClose={onClose}
@@ -2435,6 +2455,7 @@ function App() {
         completed: false,
         important: view === "important",
         myDay: !listId && (view === "myday" || view === "important" || !!dueDate),
+        myDayLocked: !listId && view === "myday",
         listId,
         createdAt: new Date().toISOString(),
         dueDate,
@@ -2653,15 +2674,19 @@ function App() {
   const showListEmoji = !!search.trim() || !currentListId;
   const buildActions = useCallback(
     (task) => [
-      {
-        icon: "Sun",
-        label: task.myDay ? "Убрать из «Мой день»" : "Добавить в «Мой день»",
-        hint: "Ctrl+T",
-        onClick: () =>
-          updateTask(task.id, {
-            myDay: !task.myDay,
-          }),
-      },
+      ...(task.myDayLocked
+        ? []
+        : [
+            {
+              icon: "Sun",
+              label: task.myDay ? "Убрать из «Мой день»" : "Добавить в «Мой день»",
+              hint: "Ctrl+T",
+              onClick: () =>
+                updateTask(task.id, {
+                  myDay: !task.myDay,
+                }),
+            },
+          ]),
       {
         icon: "Star",
         label: task.important ? "Снять отметку важности" : "Пометить как важную",
@@ -2834,9 +2859,10 @@ function App() {
     const h = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "t") {
         e.preventDefault();
-        updateTask(t.id, {
-          myDay: !t.myDay,
-        });
+        if (!t.myDayLocked)
+          updateTask(t.id, {
+            myDay: !t.myDay,
+          });
         setCtxMenu(null);
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
         e.preventDefault();
@@ -2914,12 +2940,6 @@ function App() {
         onDeleteList={deleteList}
         onRenameList={renameList}
         onReEmojiList={reemojiList}
-        onRecolorList={(list) =>
-          setColorPicker({
-            id: list.id,
-            current: list.color,
-          })
-        }
         onOpenCreate={() => setCreateOpen(true)}
         search={search}
         setSearch={setSearch}
@@ -2947,14 +2967,6 @@ function App() {
             <div className="text-xl font-semibold leading-tight truncate">{viewMeta.title}</div>
             {viewMeta.sub && /*#__PURE__*/ <div className="text-xs opacity-80 capitalize truncate">{viewMeta.sub}</div>}
           </div>
-          {view.startsWith("list:") && (() => {
-            const hl = lists.find(l => l.id === view.slice(5));
-            return hl ? (
-              <button onClick={() => setColorPicker({ id: hl.id, current: hl.color })} className="p-2 rounded hover:bg-white/20" title="Цвет списка">
-                <L name="Palette" size={20} />
-              </button>
-            ) : null;
-          })()}
           {isMobile && (
             /*#__PURE__*/ <button onClick={() => setSearchOpen(true)} className="p-2 rounded hover:bg-white/20">
               <L name="Search" size={20} />
