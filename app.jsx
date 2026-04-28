@@ -983,8 +983,6 @@ function ColorPickerModal({ open, onClose, current, onPick }) {
 // ─── MODAL: СИНХРОНИЗАЦИЯ ─────────────────────────────────────────
 function SyncModal({ open, onClose, settings, setSettings, status }) {
   const [draft, setDraft] = useState(settings);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (open) setDraft(settings);
@@ -1003,46 +1001,29 @@ function SyncModal({ open, onClose, settings, setSettings, status }) {
     });
   };
   const getAuthClient = () => status.client || createSyncClient({ ...draft, enabled: true });
-  const signIn = async () => {
-    if (!email.trim() || password.length < 6) {
-      toastDispatch?.("Введите email и пароль", "Пароль должен быть не короче 6 символов", "⚠️");
-      return;
-    }
+  const signInGoogle = async () => {
     try {
       setBusy(true);
       saveConfig();
       const client = getAuthClient();
-      const { error } = await client.auth.signInWithPassword({ email: email.trim(), password });
+      const { error } = await client.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: location.origin + location.pathname,
+        },
+      });
       if (error) throw error;
-      setSettings((p) => ({ ...p, enabled: true, sessionNonce: Date.now() }));
-      toastDispatch?.("Вход выполнен", "Синхронизация подключается", "☁️");
     } catch (e) {
-      toastDispatch?.("Не удалось войти", e.message || "Проверьте email и пароль", "⚠️");
-    } finally {
+      toastDispatch?.("Не удалось открыть вход Google", e.message || "Проверьте настройки Supabase", "⚠️");
       setBusy(false);
     }
   };
-  const signUp = async () => {
-    if (!email.trim() || password.length < 6) {
-      toastDispatch?.("Введите email и пароль", "Пароль должен быть не короче 6 символов", "⚠️");
-      return;
-    }
+  const saveOnly = () => {
     try {
-      setBusy(true);
       saveConfig();
-      const client = getAuthClient();
-      const { error } = await client.auth.signUp({
-        email: email.trim(),
-        password,
-        options: { emailRedirectTo: location.origin + location.pathname },
-      });
-      if (error) throw error;
-      setSettings((p) => ({ ...p, enabled: true, sessionNonce: Date.now() }));
-      toastDispatch?.("Аккаунт создан", "Если Supabase попросит, подтвердите email", "☁️");
-    } catch (e) {
-      toastDispatch?.("Не удалось создать аккаунт", e.message || "Проверьте настройки Supabase", "⚠️");
+      toastDispatch?.("Настройки сохранены", "Теперь можно войти через Google", "☁️");
     } finally {
-      setBusy(false);
+      onClose();
     }
   };
   const signOut = async () => {
@@ -1070,16 +1051,13 @@ function SyncModal({ open, onClose, settings, setSettings, status }) {
       <input value={draft.url || ""} onChange={(e) => setDraft((p) => ({ ...p, url: e.target.value }))} placeholder="https://xxxx.supabase.co" className={iCls + " mb-3"} />
       <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Anon public key</label>
       <input value={draft.anonKey || ""} onChange={(e) => setDraft((p) => ({ ...p, anonKey: e.target.value }))} placeholder="eyJ..." className={iCls + " mb-3"} />
-      <div className="grid grid-cols-1 gap-3 mb-4">
-        <div>
-          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Email</label>
-          <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@example.com" className={iCls} />
-        </div>
-        <div>
-          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Пароль</label>
-          <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="минимум 6 символов" className={iCls} />
-        </div>
-      </div>
+      <button
+        onClick={signInGoogle}
+        disabled={busy || !(draft.url || "").trim() || !(draft.anonKey || "").trim()}
+        className="w-full mb-4 flex items-center justify-center gap-2 rounded bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 px-4 py-2.5 text-sm font-medium text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50">
+        <L name="Chrome" size={18} />
+        Войти через Google
+      </button>
       <div className="text-xs text-gray-500 dark:text-gray-400 mb-4">
         Статус: {status.text}{status.user?.email ? `, ${status.user.email}` : ""}. Вложения-файлы остаются локально на устройстве.
       </div>
@@ -1095,11 +1073,8 @@ function SyncModal({ open, onClose, settings, setSettings, status }) {
         <button onClick={() => saveConfig({ enabled: false })} disabled={busy} className="text-sm px-4 py-2 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50">
           Выключить
         </button>
-        <button onClick={signUp} disabled={busy} className="text-sm px-4 py-2 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50">
-          Регистрация
-        </button>
-        <button onClick={signIn} disabled={busy} className="text-sm px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">
-          Войти
+        <button onClick={saveOnly} disabled={busy} className="text-sm px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">
+          Сохранить
         </button>
       </div>
     </Modal>
