@@ -1039,6 +1039,8 @@ function SyncModal({
   status
 }) {
   const [draft, setDraft] = useState(settings);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const syncConfigured = !!((window.MSTODO_SYNC || {}).supabaseUrl?.trim() && (window.MSTODO_SYNC || {}).supabaseAnonKey?.trim());
   useEffect(() => {
@@ -1054,7 +1056,73 @@ function SyncModal({
     });
   };
   const getAuthClient = () => status.client || createSyncClient();
+  const ensureSyncConfigured = () => {
+    if (syncConfigured) return true;
+    toastDispatch?.("Синхронизация не настроена", "Владелец сайта должен заполнить sync-config.js", "⚠️");
+    return false;
+  };
+  const validateEmailPassword = () => {
+    if (!email.trim() || password.length < 6) {
+      toastDispatch?.("Введите email и пароль", "Пароль должен быть не короче 6 символов", "⚠️");
+      return false;
+    }
+    return true;
+  };
+  const signInEmail = async () => {
+    if (!ensureSyncConfigured() || !validateEmailPassword()) return;
+    try {
+      setBusy(true);
+      saveConfig();
+      const client = getAuthClient();
+      const {
+        error
+      } = await client.auth.signInWithPassword({
+        email: email.trim(),
+        password
+      });
+      if (error) throw error;
+      setSettings(p => ({
+        ...p,
+        enabled: true,
+        sessionNonce: Date.now()
+      }));
+      toastDispatch?.("Вход выполнен", "Синхронизация подключается", "☁️");
+    } catch (e) {
+      toastDispatch?.("Не удалось войти", e.message || "Проверьте email и пароль", "⚠️");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const signUpEmail = async () => {
+    if (!ensureSyncConfigured() || !validateEmailPassword()) return;
+    try {
+      setBusy(true);
+      saveConfig();
+      const client = getAuthClient();
+      const {
+        error
+      } = await client.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          emailRedirectTo: location.origin + location.pathname
+        }
+      });
+      if (error) throw error;
+      setSettings(p => ({
+        ...p,
+        enabled: true,
+        sessionNonce: Date.now()
+      }));
+      toastDispatch?.("Аккаунт создан", "Если нужно, подтвердите почту и затем войдите", "☁️");
+    } catch (e) {
+      toastDispatch?.("Не удалось зарегистрироваться", e.message || "Проверьте email и пароль", "⚠️");
+    } finally {
+      setBusy(false);
+    }
+  };
   const signInGoogle = async () => {
+    if (!ensureSyncConfigured()) return;
     try {
       setBusy(true);
       saveConfig();
@@ -1076,7 +1144,7 @@ function SyncModal({
   const saveOnly = () => {
     try {
       saveConfig();
-      toastDispatch?.("Настройки сохранены", "Теперь можно войти через Google", "☁️");
+      toastDispatch?.("Настройки сохранены", "Теперь можно войти или зарегистрироваться", "☁️");
     } finally {
       onClose();
     }
@@ -1110,9 +1178,27 @@ function SyncModal({
     className: "w-4 h-4"
   }), "\u0412\u043A\u043B\u044E\u0447\u0438\u0442\u044C \u0441\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u044E"), !syncConfigured && React.createElement("div", {
     className: "mb-4 rounded-lg border border-amber-300/60 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-sm text-amber-800 dark:text-amber-200"
-  }, "\u0421\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u044F \u0435\u0449\u0451 \u043D\u0435 \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043D\u0430 \u0432\u043B\u0430\u0434\u0435\u043B\u044C\u0446\u0435\u043C \u0441\u0430\u0439\u0442\u0430."), React.createElement("button", {
+  }, "\u0421\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u044F \u0435\u0449\u0451 \u043D\u0435 \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043D\u0430 \u0432\u043B\u0430\u0434\u0435\u043B\u044C\u0446\u0435\u043C \u0441\u0430\u0439\u0442\u0430."), React.createElement("div", {
+    className: "grid grid-cols-1 gap-3 mb-4"
+  }, React.createElement("div", null, React.createElement("label", {
+    className: "block text-xs text-gray-600 dark:text-gray-400 mb-1"
+  }, "Email"), React.createElement("input", {
+    value: email,
+    onChange: e => setEmail(e.target.value),
+    type: "email",
+    placeholder: "you@example.com",
+    className: "w-full text-sm rounded px-3 py-2 focus:outline-none border bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-400 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+  })), React.createElement("div", null, React.createElement("label", {
+    className: "block text-xs text-gray-600 dark:text-gray-400 mb-1"
+  }, "\u041F\u0430\u0440\u043E\u043B\u044C"), React.createElement("input", {
+    value: password,
+    onChange: e => setPassword(e.target.value),
+    type: "password",
+    placeholder: "\u043C\u0438\u043D\u0438\u043C\u0443\u043C 6 \u0441\u0438\u043C\u0432\u043E\u043B\u043E\u0432",
+    className: "w-full text-sm rounded px-3 py-2 focus:outline-none border bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-400 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+  }))), React.createElement("button", {
     onClick: signInGoogle,
-    disabled: busy || !syncConfigured,
+    disabled: busy,
     className: "w-full mb-4 flex items-center justify-center gap-2 rounded bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 px-4 py-2.5 text-sm font-medium text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
   }, React.createElement(L, {
     name: "Chrome",
@@ -1135,9 +1221,17 @@ function SyncModal({
     disabled: busy,
     className: "text-sm px-4 py-2 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
   }, "\u0412\u044B\u043A\u043B\u044E\u0447\u0438\u0442\u044C"), React.createElement("button", {
-    onClick: saveOnly,
+    onClick: signUpEmail,
+    disabled: busy,
+    className: "text-sm px-4 py-2 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
+  }, "\u0420\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u044F"), React.createElement("button", {
+    onClick: signInEmail,
     disabled: busy,
     className: "text-sm px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+  }, "\u0412\u043E\u0439\u0442\u0438"), React.createElement("button", {
+    onClick: saveOnly,
+    disabled: busy,
+    className: "text-sm px-4 py-2 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
   }, "\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C")));
 }
 const RU_MONTHS = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];

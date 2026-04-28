@@ -1,10 +1,13 @@
-Как включить синхронизацию задач через Google
+Как включить синхронизацию задач
 
 Для пользователей сайта всё просто:
 1. Открыть сайт.
 2. Нажать "Синхронизация".
-3. Нажать "Войти через Google".
-4. На другом устройстве войти тем же Google-аккаунтом.
+3. Ввести email и пароль.
+4. Нажать "Регистрация" при первом входе или "Войти", если аккаунт уже есть.
+5. На другом устройстве войти тем же email и паролем.
+
+Дополнительно можно нажать "Войти через Google", если владелец сайта включил Google provider в Supabase.
 
 Техническая настройка для владельца сайта делается один раз:
 
@@ -23,17 +26,18 @@ window.MSTODO_SYNC = {
 7. Откройте Authentication -> URL Configuration.
 8. В Site URL укажите адрес вашего сайта на GitHub Pages.
 9. В Redirect URLs добавьте этот же адрес сайта.
-10. Откройте Authentication -> Providers -> Google.
-11. Включите Google provider.
-12. В Google Cloud Console создайте OAuth Client для Web application.
-13. В Authorized redirect URIs добавьте callback из Supabase Google provider. Он выглядит примерно так:
+10. Откройте Authentication -> Providers -> Email и включите Email provider.
+11. Для личного простого сайта можно отключить Confirm email, чтобы регистрация сразу работала без письма.
+12. Если нужен Google-вход: откройте Authentication -> Providers -> Google и включите Google provider.
+13. В Google Cloud Console создайте OAuth Client для Web application.
+14. В Authorized redirect URIs добавьте callback из Supabase Google provider. Он выглядит примерно так:
    https://ВАШ-ПРОЕКТ.supabase.co/auth/v1/callback
-14. Скопируйте Google Client ID и Client Secret обратно в Supabase Google provider и сохраните.
-15. Залейте обновлённые файлы сайта на GitHub Pages.
+15. Скопируйте Google Client ID и Client Secret обратно в Supabase Google provider и сохраните.
+16. Залейте обновлённые файлы сайта на GitHub Pages.
 
 Важно:
-- Обычные пользователи больше не видят Supabase Project URL и anon key.
-- Sync ID не нужен. Синхронизация идёт по Google-аккаунту через Supabase Auth.
+- Обычные пользователи не видят Supabase Project URL и anon key.
+- Sync ID не нужен. Синхронизация идёт по аккаунту Supabase Auth.
 - Задачи и списки видит только вошедший пользователь.
 - Используется таблица todo_user_sync. Старую таблицу todo_sync можно не трогать.
 - Синхронизируются задачи и списки. Файлы-вложения остаются локально на устройстве.
