@@ -2967,6 +2967,14 @@ function App() {
             <div className="text-xl font-semibold leading-tight truncate">{viewMeta.title}</div>
             {viewMeta.sub && /*#__PURE__*/ <div className="text-xs opacity-80 capitalize truncate">{viewMeta.sub}</div>}
           </div>
+          {view.startsWith("list:") && (() => {
+            const hl = lists.find((l) => l.id === view.slice(5));
+            return hl ? (
+              /*#__PURE__*/ <button onClick={() => setColorPicker({ id: hl.id, current: hl.color })} className="p-2 rounded hover:bg-white/20" title="Цвет списка">
+                <L name="Palette" size={20} />
+              </button>
+            ) : null;
+          })()}
           {isMobile && (
             /*#__PURE__*/ <button onClick={() => setSearchOpen(true)} className="p-2 rounded hover:bg-white/20">
               <L name="Search" size={20} />

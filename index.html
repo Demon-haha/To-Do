@@ -2883,7 +2883,20 @@ function App() {
     className: "text-xl font-semibold leading-tight truncate"
   }, viewMeta.title), viewMeta.sub && React.createElement("div", {
     className: "text-xs opacity-80 capitalize truncate"
-  }, viewMeta.sub)), isMobile && React.createElement("button", {
+  }, viewMeta.sub)), view.startsWith("list:") && (() => {
+    const hl = lists.find(l => l.id === view.slice(5));
+    return hl ? React.createElement("button", {
+      onClick: () => setColorPicker({
+        id: hl.id,
+        current: hl.color
+      }),
+      className: "p-2 rounded hover:bg-white/20",
+      title: "\u0426\u0432\u0435\u0442 \u0441\u043F\u0438\u0441\u043A\u0430"
+    }, React.createElement(L, {
+      name: "Palette",
+      size: 20
+    })) : null;
+  })(), isMobile && React.createElement("button", {
     onClick: () => setSearchOpen(true),
     className: "p-2 rounded hover:bg-white/20"
   }, React.createElement(L, {
