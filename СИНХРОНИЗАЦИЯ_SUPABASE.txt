@@ -1,27 +1,38 @@
 Как включить синхронизацию задач через Google
 
+Для пользователей сайта всё просто:
+1. Открыть сайт.
+2. Нажать "Синхронизация".
+3. Нажать "Войти через Google".
+4. На другом устройстве войти тем же Google-аккаунтом.
+
+Техническая настройка для владельца сайта делается один раз:
+
 1. Создайте бесплатный проект на https://supabase.com.
 2. Откройте в Supabase SQL Editor.
 3. Выполните файл SUPABASE_SYNC_SETUP.sql.
 4. Откройте Project Settings -> API.
 5. Скопируйте Project URL и anon public key.
-6. Откройте Authentication -> URL Configuration.
-7. В Site URL укажите адрес вашего сайта на GitHub Pages.
-8. В Redirect URLs добавьте этот же адрес сайта.
-9. Откройте Authentication -> Providers -> Google.
-10. Включите Google provider.
-11. В Google Cloud Console создайте OAuth Client для Web application.
-12. В Authorized redirect URIs добавьте callback из Supabase Google provider. Он выглядит примерно так:
+6. В файле sync-config.js вставьте эти значения:
+
+window.MSTODO_SYNC = {
+  supabaseUrl: "https://ВАШ-ПРОЕКТ.supabase.co",
+  supabaseAnonKey: "ВАШ_ANON_PUBLIC_KEY"
+};
+
+7. Откройте Authentication -> URL Configuration.
+8. В Site URL укажите адрес вашего сайта на GitHub Pages.
+9. В Redirect URLs добавьте этот же адрес сайта.
+10. Откройте Authentication -> Providers -> Google.
+11. Включите Google provider.
+12. В Google Cloud Console создайте OAuth Client для Web application.
+13. В Authorized redirect URIs добавьте callback из Supabase Google provider. Он выглядит примерно так:
    https://ВАШ-ПРОЕКТ.supabase.co/auth/v1/callback
-13. Скопируйте Google Client ID и Client Secret обратно в Supabase Google provider и сохраните.
-14. Залейте обновлённые файлы сайта на GitHub Pages.
-15. Откройте приложение To Do на компьютере.
-16. В боковом меню нажмите "Синхронизация".
-17. Включите синхронизацию, вставьте Project URL и anon public key.
-18. Нажмите "Войти через Google".
-19. На телефоне откройте этот же сайт, вставьте тот же Project URL и anon public key, нажмите "Войти через Google" и выберите тот же Google-аккаунт.
+14. Скопируйте Google Client ID и Client Secret обратно в Supabase Google provider и сохраните.
+15. Залейте обновлённые файлы сайта на GitHub Pages.
 
 Важно:
+- Обычные пользователи больше не видят Supabase Project URL и anon key.
 - Sync ID не нужен. Синхронизация идёт по Google-аккаунту через Supabase Auth.
 - Задачи и списки видит только вошедший пользователь.
 - Используется таблица todo_user_sync. Старую таблицу todo_sync можно не трогать.

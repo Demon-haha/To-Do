@@ -339,13 +339,16 @@ function stripTaskForSync(task) {
 }
 
 function isSyncReady(settings) {
-  return !!(settings?.enabled && settings?.url?.trim() && settings?.anonKey?.trim());
+  const cfg = window.MSTODO_SYNC || {};
+  return !!(settings?.enabled && cfg.supabaseUrl?.trim() && cfg.supabaseAnonKey?.trim());
 }
 
-function createSyncClient(settings) {
+function createSyncClient() {
   const api = window.supabase;
+  const cfg = window.MSTODO_SYNC || {};
   if (!api?.createClient) throw new Error("Supabase library is not loaded");
-  return api.createClient(settings.url.trim(), settings.anonKey.trim(), {
+  if (!cfg.supabaseUrl?.trim() || !cfg.supabaseAnonKey?.trim()) throw new Error("Sync config is missing");
+  return api.createClient(cfg.supabaseUrl.trim(), cfg.supabaseAnonKey.trim(), {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
     realtime: { params: { eventsPerSecond: 2 } },
   });
@@ -402,7 +405,7 @@ function useCloudSync(settings, setSettings, tasks, setTasks, lists, setLists) {
     if (error) throw error;
     setSettings((prev) => ({ ...prev, lastSyncedAt: updatedAt }));
     setSyncStatus({ state: "on", text: "Синхронизировано" });
-  }, [setSettings, settings?.anonKey, settings?.enabled, settings?.url]);
+  }, [setSettings, settings?.enabled]);
 
   useEffect(() => {
     readyRef.current = false;
@@ -429,7 +432,7 @@ function useCloudSync(settings, setSettings, tasks, setTasks, lists, setLists) {
     (async () => {
       try {
         setSyncStatus({ state: "syncing", text: "Подключение..." });
-        const client = createSyncClient(settings);
+        const client = createSyncClient();
         clientRef.current = client;
         const { data: sessionData } = await client.auth.getSession();
         const user = sessionData.session?.user || null;
@@ -460,7 +463,7 @@ function useCloudSync(settings, setSettings, tasks, setTasks, lists, setLists) {
       if (pollId) clearInterval(pollId);
       if (channel && clientRef.current) clientRef.current.removeChannel(channel);
     };
-  }, [applyPayload, pushSnapshot, settings?.anonKey, settings?.enabled, settings?.url, settings?.sessionNonce]);
+  }, [applyPayload, pushSnapshot, settings?.enabled, settings?.sessionNonce]);
 
   useEffect(() => {
     if (!readyRef.current || applyingRemoteRef.current || !isSyncReady(settings) || !syncUser) return;
@@ -984,23 +987,20 @@ function ColorPickerModal({ open, onClose, current, onPick }) {
 function SyncModal({ open, onClose, settings, setSettings, status }) {
   const [draft, setDraft] = useState(settings);
   const [busy, setBusy] = useState(false);
+  const syncConfigured = !!((window.MSTODO_SYNC || {}).supabaseUrl?.trim() && (window.MSTODO_SYNC || {}).supabaseAnonKey?.trim());
   useEffect(() => {
     if (open) setDraft(settings);
   }, [open, settings]);
-  const iCls =
-    "w-full text-sm rounded px-3 py-2 focus:outline-none border bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-400 placeholder:text-gray-400 dark:placeholder:text-gray-500";
   const saveConfig = (extra = {}) => {
     setSettings({
       ...settings,
       ...draft,
       ...extra,
       enabled: extra.enabled ?? true,
-      url: (draft.url || "").trim(),
-      anonKey: (draft.anonKey || "").trim(),
       sessionNonce: Date.now(),
     });
   };
-  const getAuthClient = () => status.client || createSyncClient({ ...draft, enabled: true });
+  const getAuthClient = () => status.client || createSyncClient();
   const signInGoogle = async () => {
     try {
       setBusy(true);
@@ -1047,13 +1047,14 @@ function SyncModal({ open, onClose, settings, setSettings, status }) {
         />
         Включить синхронизацию
       </label>
-      <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Supabase Project URL</label>
-      <input value={draft.url || ""} onChange={(e) => setDraft((p) => ({ ...p, url: e.target.value }))} placeholder="https://xxxx.supabase.co" className={iCls + " mb-3"} />
-      <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Anon public key</label>
-      <input value={draft.anonKey || ""} onChange={(e) => setDraft((p) => ({ ...p, anonKey: e.target.value }))} placeholder="eyJ..." className={iCls + " mb-3"} />
+      {!syncConfigured && (
+        <div className="mb-4 rounded-lg border border-amber-300/60 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+          Синхронизация ещё не настроена владельцем сайта.
+        </div>
+      )}
       <button
         onClick={signInGoogle}
-        disabled={busy || !(draft.url || "").trim() || !(draft.anonKey || "").trim()}
+        disabled={busy || !syncConfigured}
         className="w-full mb-4 flex items-center justify-center gap-2 rounded bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 px-4 py-2.5 text-sm font-medium text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50">
         <L name="Chrome" size={18} />
         Войти через Google
@@ -2624,7 +2625,7 @@ function App() {
   const [dark, toggleTheme] = useTheme();
   const [tasks, setTasks] = useLocalStorage(STORAGE_TASKS, []);
   const [lists, setLists] = useLocalStorage(STORAGE_LISTS, []);
-  const [syncSettings, setSyncSettings] = useLocalStorage(STORAGE_SYNC, { enabled: false, url: "", anonKey: "", lastSyncedAt: 0 });
+  const [syncSettings, setSyncSettings] = useLocalStorage(STORAGE_SYNC, { enabled: false, lastSyncedAt: 0 });
   const [view, setView] = useState("myday");
   const [search, setSearch] = useState("");
   const [showCompleted, setShowCompleted] = useState(true);
