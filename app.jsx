@@ -19,6 +19,8 @@ const STORAGE_TASKS = "mstodo_clone_tasks_v3";
 const STORAGE_LISTS = "mstodo_clone_lists_v3";
 const STORAGE_THEME = "mstodo_theme";
 const FIRED_KEY = "mstodo_fired_reminders_v2";
+const FILE_DB_NAME = "mstodo_files_v1";
+const FILE_STORE = "files";
 const DEFAULT_EMOJI = "📋";
 const EMOJI_BANK = ["📋", "✅", "⭐", "💼", "🏠", "🛒", "🎯", "📚", "💡", "🏋️", "🍎", "✈️", "🎵", "💻", "🎨", "🧘", "🌱", "🔥", "💰", "📦", "🎮", "🐶", "☕", "📝"];
 const COLOR_BANK = [
@@ -268,6 +270,52 @@ function useLocalStorage(key, initial) {
   return [state, setState];
 }
 
+function openFileDb() {
+  return new Promise((resolve, reject) => {
+    if (!("indexedDB" in window)) {
+      reject(new Error("IndexedDB is not available"));
+      return;
+    }
+    const req = indexedDB.open(FILE_DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(FILE_STORE)) db.createObjectStore(FILE_STORE, { keyPath: "id" });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function fileDbRequest(mode, action) {
+  return openFileDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(FILE_STORE, mode);
+        const store = tx.objectStore(FILE_STORE);
+        const req = action(store);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+        tx.oncomplete = () => db.close();
+        tx.onerror = () => {
+          db.close();
+          reject(tx.error);
+        };
+      })
+  );
+}
+
+function saveFileBlob(meta, blob) {
+  return fileDbRequest("readwrite", (store) => store.put({ ...meta, blob }));
+}
+
+function getFileBlob(id) {
+  return fileDbRequest("readonly", (store) => store.get(id));
+}
+
+function deleteFileBlob(id) {
+  return fileDbRequest("readwrite", (store) => store.delete(id)).catch(() => {});
+}
+
 // ─── ТЕМА ─────────────────────────────────────────────────────────
 function useTheme() {
   const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
@@ -503,8 +551,9 @@ function useReminders(tasks, onFire) {
       w?.postMessage({
         type: "cancelAll",
       });
-      if (swReg && navigator.serviceWorker.controller)
-        navigator.serviceWorker.controller.postMessage({
+      const swTarget = navigator.serviceWorker.controller || swReg?.active;
+      if (swReg && swTarget)
+        swTarget.postMessage({
           type: "cancelAll",
         });
       const now = Date.now(),
@@ -518,8 +567,8 @@ function useReminders(tasks, onFire) {
           fire(t);
           return;
         }
-        if (swReg && navigator.serviceWorker.controller)
-          navigator.serviceWorker.controller.postMessage({
+        if (swReg && swTarget)
+          swTarget.postMessage({
             type: "schedule",
             id: t.id,
             title: "🔔 " + t.title,
@@ -938,6 +987,37 @@ function MoveTaskModal({ open, onClose, lists, currentListId, onPick }) {
 
 // ─── FILE VIEWER ──────────────────────────────────────────────────
 function FileViewer({ file, onClose }) {
+  const [fileUrl, setFileUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl = "";
+    setFileUrl("");
+    setLoading(false);
+    if (!file) return;
+    if (file.data) {
+      setFileUrl(file.data);
+      return;
+    }
+    setLoading(true);
+    getFileBlob(file.id)
+      .then((stored) => {
+        if (cancelled) return;
+        if (!stored?.blob) throw new Error("File is missing");
+        objectUrl = URL.createObjectURL(stored.blob);
+        setFileUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) toastDispatch?.("Файл не найден", "Вложение не удалось открыть", "⚠️");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [file?.id, file?.data]);
   if (!file) return null;
   const isImg = file.type?.startsWith("image/");
   return (
@@ -949,13 +1029,15 @@ function FileViewer({ file, onClose }) {
         </button>
       </div>
       <div className="flex-1 flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
-        {isImg ? (
-          /*#__PURE__*/ <img src={file.data} className="max-w-full max-h-full object-contain rounded-xl" alt={file.name} />
+        {loading ? (
+          /*#__PURE__*/ <div className="text-white/60 text-sm">Загрузка...</div>
+        ) : isImg && fileUrl ? (
+          /*#__PURE__*/ <img src={fileUrl} className="max-w-full max-h-full object-contain rounded-xl" alt={file.name} />
         ) : (
           /*#__PURE__*/ <div className="text-center">
             <L name="File" size={64} className="text-gray-400 mx-auto mb-4" />
             <div className="text-white/60 text-sm mb-5">{file.name}</div>
-            <a href={file.data} download={file.name} className="text-blue-400 border border-blue-400/40 px-4 py-2 rounded-lg text-sm">
+            <a href={fileUrl || file.data} download={file.name} className="text-blue-400 border border-blue-400/40 px-4 py-2 rounded-lg text-sm">
               Скачать
             </a>
           </div>
@@ -1011,27 +1093,28 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
     });
     setNewStep("");
   };
-  const handleFile = (e) => {
+  const handleFile = async (e) => {
     const f = e.target.files[0];
     if (!f) return;
     if (f.size > 3000000) {
       toastDispatch?.("Файл слишком большой", "Максимум 3 МБ", "⚠️");
       return;
     }
-    const r = new FileReader();
-    r.onload = (ev) =>
+    const meta = {
+      id: uid(),
+      name: f.name,
+      type: f.type,
+      size: f.size,
+      stored: "indexedDB",
+    };
+    try {
+      await saveFileBlob(meta, f);
       onUpdate(task.id, {
-        files: [
-          ...files,
-          {
-            id: uid(),
-            name: f.name,
-            type: f.type,
-            data: ev.target.result,
-          },
-        ],
+        files: [...files, meta],
       });
-    r.readAsDataURL(f);
+    } catch {
+      toastDispatch?.("Файл не сохранён", "Браузер не дал сохранить вложение", "⚠️");
+    }
     e.target.value = "";
   };
   const panelCls = isMobile
@@ -1272,7 +1355,7 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
             /*#__PURE__*/ <div className="px-5 py-4 border-b border-gray-700/30 flex flex-wrap gap-3">
               {files.map((f) => (
                 /*#__PURE__*/ <div key={f.id} className="relative">
-                  {f.type?.startsWith("image/") ? (
+                  {f.type?.startsWith("image/") && f.data ? (
                     /*#__PURE__*/ <button onClick={() => setViewFile(f)} className="w-16 h-16 rounded-xl overflow-hidden border border-gray-600 hover:border-blue-400">
                       <img src={f.data} className="w-full h-full object-cover" alt={f.name} />
                     </button>
@@ -1285,11 +1368,12 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
                     </button>
                   )}
                   <button
-                    onClick={() =>
+                    onClick={() => {
+                      deleteFileBlob(f.id);
                       onUpdate(task.id, {
                         files: files.filter((x) => x.id !== f.id),
-                      })
-                    }
+                      });
+                    }}
                     className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-gray-700 hover:bg-red-600 rounded-full flex items-center justify-center border border-gray-600">
                     <L name="X" size={10} className="text-white" />
                   </button>
@@ -2281,11 +2365,6 @@ function App() {
     const h = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", h);
     return () => window.removeEventListener("resize", h);
-  }, []);
-  useEffect(() => {
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission().then(p => setNotifStatus(p));
-    }
   }, []);
   useEffect(() => {
     if (view === "tasks") setView("myday");

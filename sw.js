@@ -66,6 +66,11 @@ self.addEventListener("message", (event) => {
   if (data.type === "cancelAll") {
     SCHEDULED.forEach((tid) => clearTimeout(tid));
     SCHEDULED.clear();
+    self.registration.getNotifications().then((ns) => {
+      ns.forEach((n) => {
+        if (!n.tag || n.tag.startsWith("reminder-")) n.close();
+      });
+    });
   }
 });
 
