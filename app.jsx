@@ -18,9 +18,12 @@ const { useState, useEffect, useMemo, useRef, useCallback, memo } = React;
 const STORAGE_TASKS = "mstodo_clone_tasks_v3";
 const STORAGE_LISTS = "mstodo_clone_lists_v3";
 const STORAGE_THEME = "mstodo_theme";
+const STORAGE_SYNC = "mstodo_sync_settings_v1";
+const STORAGE_DEVICE = "mstodo_device_id";
 const FIRED_KEY = "mstodo_fired_reminders_v2";
 const FILE_DB_NAME = "mstodo_files_v1";
 const FILE_STORE = "files";
+const SYNC_TABLE = "todo_sync";
 const DEFAULT_EMOJI = "📋";
 const EMOJI_BANK = ["📋", "✅", "⭐", "💼", "🏠", "🛒", "🎯", "📚", "💡", "🏋️", "🍎", "✈️", "🎵", "💻", "🎨", "🧘", "🌱", "🔥", "💰", "📦", "🎮", "🐶", "☕", "📝"];
 const COLOR_BANK = [
@@ -314,6 +317,149 @@ function getFileBlob(id) {
 
 function deleteFileBlob(id) {
   return fileDbRequest("readwrite", (store) => store.delete(id)).catch(() => {});
+}
+
+function getDeviceId() {
+  try {
+    const existing = localStorage.getItem(STORAGE_DEVICE);
+    if (existing) return existing;
+    const next = uid();
+    localStorage.setItem(STORAGE_DEVICE, next);
+    return next;
+  } catch {
+    return uid();
+  }
+}
+
+function stripTaskForSync(task) {
+  return {
+    ...task,
+    files: (task.files || []).map(({ data, ...file }) => file),
+  };
+}
+
+function isSyncReady(settings) {
+  return !!(settings?.enabled && settings?.url?.trim() && settings?.anonKey?.trim() && settings?.syncId?.trim());
+}
+
+function createSyncClient(settings) {
+  const api = window.supabase;
+  if (!api?.createClient) throw new Error("Supabase library is not loaded");
+  return api.createClient(settings.url.trim(), settings.anonKey.trim(), {
+    auth: { persistSession: false },
+    realtime: { params: { eventsPerSecond: 2 } },
+  });
+}
+
+function useCloudSync(settings, setSettings, tasks, setTasks, lists, setLists) {
+  const [syncStatus, setSyncStatus] = useState({ state: "off", text: "Синхронизация выключена" });
+  const clientRef = useRef(null);
+  const readyRef = useRef(false);
+  const applyingRemoteRef = useRef(false);
+  const deviceIdRef = useRef(null);
+  const tasksRef = useRef(tasks);
+  const listsRef = useRef(lists);
+  if (!deviceIdRef.current) deviceIdRef.current = getDeviceId();
+  useEffect(() => {
+    tasksRef.current = tasks;
+    listsRef.current = lists;
+  }, [lists, tasks]);
+
+  const applyPayload = useCallback(
+    (payload) => {
+      if (!payload || payload.deviceId === deviceIdRef.current) return;
+      if (!Array.isArray(payload.tasks) || !Array.isArray(payload.lists)) return;
+      applyingRemoteRef.current = true;
+      setTasks(payload.tasks);
+      setLists(payload.lists);
+      setSettings((prev) => ({ ...prev, lastSyncedAt: payload.updatedAt || Date.now() }));
+      setSyncStatus({ state: "on", text: "Синхронизировано" });
+      setTimeout(() => {
+        applyingRemoteRef.current = false;
+      }, 1000);
+    },
+    [setLists, setSettings, setTasks]
+  );
+
+  const pushSnapshot = useCallback(async () => {
+    const client = clientRef.current;
+    if (!client || !isSyncReady(settings)) return;
+    const updatedAt = Date.now();
+    const payload = {
+      tasks: tasksRef.current.map(stripTaskForSync),
+      lists: listsRef.current,
+      updatedAt,
+      deviceId: deviceIdRef.current,
+    };
+    const { error } = await client.from(SYNC_TABLE).upsert({
+      id: settings.syncId.trim(),
+      payload,
+      updated_at: new Date(updatedAt).toISOString(),
+    });
+    if (error) throw error;
+    setSettings((prev) => ({ ...prev, lastSyncedAt: updatedAt }));
+    setSyncStatus({ state: "on", text: "Синхронизировано" });
+  }, [setSettings, settings?.anonKey, settings?.enabled, settings?.syncId, settings?.url]);
+
+  useEffect(() => {
+    readyRef.current = false;
+    clientRef.current = null;
+    if (!settings?.enabled) {
+      setSyncStatus({ state: "off", text: "Синхронизация выключена" });
+      return;
+    }
+    if (!isSyncReady(settings)) {
+      setSyncStatus({ state: "warn", text: "Нужна настройка синхронизации" });
+      return;
+    }
+    let cancelled = false;
+    let channel = null;
+    let pollId = null;
+    const syncId = settings.syncId.trim();
+    const pullRemote = async (client) => {
+      const { data, error } = await client.from(SYNC_TABLE).select("payload").eq("id", syncId).maybeSingle();
+      if (error) throw error;
+      if (data?.payload) applyPayload(data.payload);
+      else await pushSnapshot();
+    };
+    (async () => {
+      try {
+        setSyncStatus({ state: "syncing", text: "Подключение..." });
+        const client = createSyncClient(settings);
+        clientRef.current = client;
+        await pullRemote(client);
+        if (cancelled) return;
+        readyRef.current = true;
+        channel = client
+          .channel("todo-sync-" + syncId)
+          .on("postgres_changes", { event: "*", schema: "public", table: SYNC_TABLE, filter: "id=eq." + syncId }, (event) => {
+            applyPayload(event.new?.payload);
+          })
+          .subscribe();
+        pollId = setInterval(() => pullRemote(client).catch(() => setSyncStatus({ state: "warn", text: "Ошибка синхронизации" })), 15000);
+        setSyncStatus({ state: "on", text: "Синхронизация включена" });
+      } catch {
+        if (!cancelled) setSyncStatus({ state: "warn", text: "Ошибка синхронизации" });
+      }
+    })();
+    return () => {
+      cancelled = true;
+      readyRef.current = false;
+      if (pollId) clearInterval(pollId);
+      if (channel && clientRef.current) clientRef.current.removeChannel(channel);
+    };
+  }, [applyPayload, pushSnapshot, settings?.anonKey, settings?.enabled, settings?.syncId, settings?.url]);
+
+  useEffect(() => {
+    if (!readyRef.current || applyingRemoteRef.current || !isSyncReady(settings)) return;
+    setSyncStatus({ state: "syncing", text: "Сохранение..." });
+    const id = setTimeout(() => {
+      pushSnapshot().catch(() => setSyncStatus({ state: "warn", text: "Ошибка синхронизации" }));
+    }, 800);
+    return () => clearTimeout(id);
+  }, [lists, pushSnapshot, settings, tasks]);
+
+  return syncStatus;
 }
 
 // ─── ТЕМА ─────────────────────────────────────────────────────────
@@ -816,6 +962,66 @@ function ColorPickerModal({ open, onClose, current, onPick }) {
       <div className="flex justify-end">
         <button onClick={onClose} className="text-sm px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
           Отмена
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── MODAL: СИНХРОНИЗАЦИЯ ─────────────────────────────────────────
+function SyncModal({ open, onClose, settings, setSettings, status }) {
+  const [draft, setDraft] = useState(settings);
+  useEffect(() => {
+    if (open) setDraft(settings);
+  }, [open, settings]);
+  const iCls =
+    "w-full text-sm rounded px-3 py-2 focus:outline-none border bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-400 placeholder:text-gray-400 dark:placeholder:text-gray-500";
+  const randomId = () => {
+    setDraft((p) => ({ ...p, syncId: "todo-" + uid() }));
+  };
+  const save = () => {
+    setSettings({
+      ...settings,
+      ...draft,
+      url: (draft.url || "").trim(),
+      anonKey: (draft.anonKey || "").trim(),
+      syncId: (draft.syncId || "").trim(),
+    });
+    onClose();
+  };
+  return (
+    /*#__PURE__*/ <Modal open={open} onClose={onClose} title="Синхронизация">
+      <label className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-200 mb-4">
+        <input
+          type="checkbox"
+          checked={!!draft.enabled}
+          onChange={(e) => setDraft((p) => ({ ...p, enabled: e.target.checked }))}
+          className="w-4 h-4"
+        />
+        Включить синхронизацию
+      </label>
+      <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Supabase Project URL</label>
+      <input value={draft.url || ""} onChange={(e) => setDraft((p) => ({ ...p, url: e.target.value }))} placeholder="https://xxxx.supabase.co" className={iCls + " mb-3"} />
+      <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Anon public key</label>
+      <input value={draft.anonKey || ""} onChange={(e) => setDraft((p) => ({ ...p, anonKey: e.target.value }))} placeholder="eyJ..." className={iCls + " mb-3"} />
+      <div className="flex items-end gap-2 mb-4">
+        <div className="flex-1">
+          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Sync ID</label>
+          <input value={draft.syncId || ""} onChange={(e) => setDraft((p) => ({ ...p, syncId: e.target.value }))} placeholder="одинаковый на компе и телефоне" className={iCls} />
+        </div>
+        <button onClick={randomId} className="px-3 py-2 rounded text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+          Новый
+        </button>
+      </div>
+      <div className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+        Статус: {status.text}. Вложения-файлы остаются локально на устройстве.
+      </div>
+      <div className="flex justify-end gap-2">
+        <button onClick={onClose} className="text-sm px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+          Отмена
+        </button>
+        <button onClick={save} className="text-sm px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">
+          Сохранить
         </button>
       </div>
     </Modal>
@@ -1961,6 +2167,8 @@ function Sidebar({
   notifStatus,
   onEnableNotif,
   onTestNotif,
+  syncStatus,
+  onOpenSync,
   dark,
   toggleTheme,
 }) {
@@ -2074,6 +2282,13 @@ function Sidebar({
           onClick={onOpenCreate}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/50">
           <L name="Plus" size={18} /> Создать список
+        </button>
+        <button
+          onClick={onOpenSync}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/50">
+          <L name={syncStatus.state === "on" ? "CloudCheck" : syncStatus.state === "syncing" ? "RefreshCw" : "Cloud"} size={18} />
+          <span className="flex-1 text-left">Синхронизация</span>
+          <span className={`w-2 h-2 rounded-full ${syncStatus.state === "on" ? "bg-green-500" : syncStatus.state === "syncing" ? "bg-blue-500" : syncStatus.state === "warn" ? "bg-amber-500" : "bg-gray-400"}`} />
         </button>
       </div>
     </aside>
@@ -2356,6 +2571,7 @@ function App() {
   const [dark, toggleTheme] = useTheme();
   const [tasks, setTasks] = useLocalStorage(STORAGE_TASKS, []);
   const [lists, setLists] = useLocalStorage(STORAGE_LISTS, []);
+  const [syncSettings, setSyncSettings] = useLocalStorage(STORAGE_SYNC, { enabled: false, url: "", anonKey: "", syncId: "", lastSyncedAt: 0 });
   const [view, setView] = useState("myday");
   const [search, setSearch] = useState("");
   const [showCompleted, setShowCompleted] = useState(true);
@@ -2367,6 +2583,7 @@ function App() {
   const [movePicker, setMovePicker] = useState(null);
   const [openTask, setOpenTask] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
   const now = useNow();
   const nowTs = now.getTime();
   const [composerDate, setComposerDate] = useState(null);
@@ -2381,6 +2598,7 @@ function App() {
   const [reminderPicker, setReminderPicker] = useState(null);
   const [colorPicker, setColorPicker] = useState(null);
   const [notifStatus, setNotifStatus] = useState(() => ("Notification" in window ? Notification.permission : "denied"));
+  const syncStatus = useCloudSync(syncSettings, setSyncSettings, tasks, setTasks, lists, setLists);
   useEffect(() => {
     const h = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", h);
@@ -2949,6 +3167,8 @@ function App() {
         notifStatus={notifStatus}
         onEnableNotif={enableNotif}
         onTestNotif={testNotif}
+        syncStatus={syncStatus}
+        onOpenSync={() => setSyncOpen(true)}
         dark={dark}
         toggleTheme={toggleTheme}
       />
@@ -3066,6 +3286,7 @@ function App() {
       </main>
       <ToastContainer />
       <CreateListModal open={createOpen} onClose={() => setCreateOpen(false)} onCreate={createList} />
+      <SyncModal open={syncOpen} onClose={() => setSyncOpen(false)} settings={syncSettings} setSettings={setSyncSettings} status={syncStatus} />
       <ColorPickerModal
         open={!!colorPicker}
         onClose={() => setColorPicker(null)}
