@@ -20,8 +20,8 @@
     } catch {}
   </script>
 
-  <script>tailwind.config = { darkMode: "class" };</script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: "class" };</script>
 
   <!-- Все три либы с jsDelivr UMD: единый CDN, обычные скрипты, без ESM/import.
        Раньше Lucide грузился с esm.sh ESM — на мобильных и в эмуляторе
@@ -1141,14 +1141,6 @@ function SyncModal({
       setBusy(false);
     }
   };
-  const saveOnly = () => {
-    try {
-      saveConfig();
-      toastDispatch?.("Настройки сохранены", "Теперь можно войти или зарегистрироваться", "☁️");
-    } finally {
-      onClose();
-    }
-  };
   const signOut = async () => {
     try {
       setBusy(true);
@@ -1228,11 +1220,7 @@ function SyncModal({
     onClick: signInEmail,
     disabled: busy,
     className: "text-sm px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-  }, "\u0412\u043E\u0439\u0442\u0438"), React.createElement("button", {
-    onClick: saveOnly,
-    disabled: busy,
-    className: "text-sm px-4 py-2 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
-  }, "\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C")));
+  }, "\u0412\u043E\u0439\u0442\u0438")));
 }
 const RU_MONTHS = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
 const RU_WD = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];

@@ -1069,14 +1069,6 @@ function SyncModal({ open, onClose, settings, setSettings, status }) {
       setBusy(false);
     }
   };
-  const saveOnly = () => {
-    try {
-      saveConfig();
-      toastDispatch?.("Настройки сохранены", "Теперь можно войти или зарегистрироваться", "☁️");
-    } finally {
-      onClose();
-    }
-  };
   const signOut = async () => {
     try {
       setBusy(true);
@@ -1140,9 +1132,6 @@ function SyncModal({ open, onClose, settings, setSettings, status }) {
         </button>
         <button onClick={signInEmail} disabled={busy} className="text-sm px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">
           Войти
-        </button>
-        <button onClick={saveOnly} disabled={busy} className="text-sm px-4 py-2 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50">
-          Сохранить
         </button>
       </div>
     </Modal>
