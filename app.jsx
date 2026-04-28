@@ -23,7 +23,7 @@ const STORAGE_DEVICE = "mstodo_device_id";
 const FIRED_KEY = "mstodo_fired_reminders_v2";
 const FILE_DB_NAME = "mstodo_files_v1";
 const FILE_STORE = "files";
-const SYNC_TABLE = "todo_sync";
+const SYNC_TABLE = "todo_user_sync";
 const DEFAULT_EMOJI = "📋";
 const EMOJI_BANK = ["📋", "✅", "⭐", "💼", "🏠", "🛒", "🎯", "📚", "💡", "🏋️", "🍎", "✈️", "🎵", "💻", "🎨", "🧘", "🌱", "🔥", "💰", "📦", "🎮", "🐶", "☕", "📝"];
 const COLOR_BANK = [
@@ -339,26 +339,28 @@ function stripTaskForSync(task) {
 }
 
 function isSyncReady(settings) {
-  return !!(settings?.enabled && settings?.url?.trim() && settings?.anonKey?.trim() && settings?.syncId?.trim());
+  return !!(settings?.enabled && settings?.url?.trim() && settings?.anonKey?.trim());
 }
 
 function createSyncClient(settings) {
   const api = window.supabase;
   if (!api?.createClient) throw new Error("Supabase library is not loaded");
   return api.createClient(settings.url.trim(), settings.anonKey.trim(), {
-    auth: { persistSession: false },
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
     realtime: { params: { eventsPerSecond: 2 } },
   });
 }
 
 function useCloudSync(settings, setSettings, tasks, setTasks, lists, setLists) {
   const [syncStatus, setSyncStatus] = useState({ state: "off", text: "Синхронизация выключена" });
+  const [syncUser, setSyncUser] = useState(null);
   const clientRef = useRef(null);
   const readyRef = useRef(false);
   const applyingRemoteRef = useRef(false);
   const deviceIdRef = useRef(null);
   const tasksRef = useRef(tasks);
   const listsRef = useRef(lists);
+  const userRef = useRef(null);
   if (!deviceIdRef.current) deviceIdRef.current = getDeviceId();
   useEffect(() => {
     tasksRef.current = tasks;
@@ -383,7 +385,8 @@ function useCloudSync(settings, setSettings, tasks, setTasks, lists, setLists) {
 
   const pushSnapshot = useCallback(async () => {
     const client = clientRef.current;
-    if (!client || !isSyncReady(settings)) return;
+    const user = userRef.current;
+    if (!client || !user || !isSyncReady(settings)) return;
     const updatedAt = Date.now();
     const payload = {
       tasks: tasksRef.current.map(stripTaskForSync),
@@ -392,18 +395,20 @@ function useCloudSync(settings, setSettings, tasks, setTasks, lists, setLists) {
       deviceId: deviceIdRef.current,
     };
     const { error } = await client.from(SYNC_TABLE).upsert({
-      id: settings.syncId.trim(),
+      user_id: user.id,
       payload,
       updated_at: new Date(updatedAt).toISOString(),
     });
     if (error) throw error;
     setSettings((prev) => ({ ...prev, lastSyncedAt: updatedAt }));
     setSyncStatus({ state: "on", text: "Синхронизировано" });
-  }, [setSettings, settings?.anonKey, settings?.enabled, settings?.syncId, settings?.url]);
+  }, [setSettings, settings?.anonKey, settings?.enabled, settings?.url]);
 
   useEffect(() => {
     readyRef.current = false;
     clientRef.current = null;
+    userRef.current = null;
+    setSyncUser(null);
     if (!settings?.enabled) {
       setSyncStatus({ state: "off", text: "Синхронизация выключена" });
       return;
@@ -415,9 +420,8 @@ function useCloudSync(settings, setSettings, tasks, setTasks, lists, setLists) {
     let cancelled = false;
     let channel = null;
     let pollId = null;
-    const syncId = settings.syncId.trim();
-    const pullRemote = async (client) => {
-      const { data, error } = await client.from(SYNC_TABLE).select("payload").eq("id", syncId).maybeSingle();
+    const pullRemote = async (client, user) => {
+      const { data, error } = await client.from(SYNC_TABLE).select("payload").eq("user_id", user.id).maybeSingle();
       if (error) throw error;
       if (data?.payload) applyPayload(data.payload);
       else await pushSnapshot();
@@ -427,16 +431,24 @@ function useCloudSync(settings, setSettings, tasks, setTasks, lists, setLists) {
         setSyncStatus({ state: "syncing", text: "Подключение..." });
         const client = createSyncClient(settings);
         clientRef.current = client;
-        await pullRemote(client);
+        const { data: sessionData } = await client.auth.getSession();
+        const user = sessionData.session?.user || null;
+        if (!user) {
+          setSyncStatus({ state: "warn", text: "Войдите в аккаунт" });
+          return;
+        }
+        userRef.current = user;
+        setSyncUser(user);
+        await pullRemote(client, user);
         if (cancelled) return;
         readyRef.current = true;
         channel = client
-          .channel("todo-sync-" + syncId)
-          .on("postgres_changes", { event: "*", schema: "public", table: SYNC_TABLE, filter: "id=eq." + syncId }, (event) => {
+          .channel("todo-sync-" + user.id)
+          .on("postgres_changes", { event: "*", schema: "public", table: SYNC_TABLE, filter: "user_id=eq." + user.id }, (event) => {
             applyPayload(event.new?.payload);
           })
           .subscribe();
-        pollId = setInterval(() => pullRemote(client).catch(() => setSyncStatus({ state: "warn", text: "Ошибка синхронизации" })), 15000);
+        pollId = setInterval(() => pullRemote(client, user).catch(() => setSyncStatus({ state: "warn", text: "Ошибка синхронизации" })), 15000);
         setSyncStatus({ state: "on", text: "Синхронизация включена" });
       } catch {
         if (!cancelled) setSyncStatus({ state: "warn", text: "Ошибка синхронизации" });
@@ -448,18 +460,18 @@ function useCloudSync(settings, setSettings, tasks, setTasks, lists, setLists) {
       if (pollId) clearInterval(pollId);
       if (channel && clientRef.current) clientRef.current.removeChannel(channel);
     };
-  }, [applyPayload, pushSnapshot, settings?.anonKey, settings?.enabled, settings?.syncId, settings?.url]);
+  }, [applyPayload, pushSnapshot, settings?.anonKey, settings?.enabled, settings?.url, settings?.sessionNonce]);
 
   useEffect(() => {
-    if (!readyRef.current || applyingRemoteRef.current || !isSyncReady(settings)) return;
+    if (!readyRef.current || applyingRemoteRef.current || !isSyncReady(settings) || !syncUser) return;
     setSyncStatus({ state: "syncing", text: "Сохранение..." });
     const id = setTimeout(() => {
       pushSnapshot().catch(() => setSyncStatus({ state: "warn", text: "Ошибка синхронизации" }));
     }, 800);
     return () => clearTimeout(id);
-  }, [lists, pushSnapshot, settings, tasks]);
+  }, [lists, pushSnapshot, settings, syncUser, tasks]);
 
-  return syncStatus;
+  return { ...syncStatus, user: syncUser, client: clientRef.current };
 }
 
 // ─── ТЕМА ─────────────────────────────────────────────────────────
@@ -971,23 +983,77 @@ function ColorPickerModal({ open, onClose, current, onPick }) {
 // ─── MODAL: СИНХРОНИЗАЦИЯ ─────────────────────────────────────────
 function SyncModal({ open, onClose, settings, setSettings, status }) {
   const [draft, setDraft] = useState(settings);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (open) setDraft(settings);
   }, [open, settings]);
   const iCls =
     "w-full text-sm rounded px-3 py-2 focus:outline-none border bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-400 placeholder:text-gray-400 dark:placeholder:text-gray-500";
-  const randomId = () => {
-    setDraft((p) => ({ ...p, syncId: "todo-" + uid() }));
-  };
-  const save = () => {
+  const saveConfig = (extra = {}) => {
     setSettings({
       ...settings,
       ...draft,
+      ...extra,
+      enabled: extra.enabled ?? true,
       url: (draft.url || "").trim(),
       anonKey: (draft.anonKey || "").trim(),
-      syncId: (draft.syncId || "").trim(),
+      sessionNonce: Date.now(),
     });
-    onClose();
+  };
+  const getAuthClient = () => status.client || createSyncClient({ ...draft, enabled: true });
+  const signIn = async () => {
+    if (!email.trim() || password.length < 6) {
+      toastDispatch?.("Введите email и пароль", "Пароль должен быть не короче 6 символов", "⚠️");
+      return;
+    }
+    try {
+      setBusy(true);
+      saveConfig();
+      const client = getAuthClient();
+      const { error } = await client.auth.signInWithPassword({ email: email.trim(), password });
+      if (error) throw error;
+      setSettings((p) => ({ ...p, enabled: true, sessionNonce: Date.now() }));
+      toastDispatch?.("Вход выполнен", "Синхронизация подключается", "☁️");
+    } catch (e) {
+      toastDispatch?.("Не удалось войти", e.message || "Проверьте email и пароль", "⚠️");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const signUp = async () => {
+    if (!email.trim() || password.length < 6) {
+      toastDispatch?.("Введите email и пароль", "Пароль должен быть не короче 6 символов", "⚠️");
+      return;
+    }
+    try {
+      setBusy(true);
+      saveConfig();
+      const client = getAuthClient();
+      const { error } = await client.auth.signUp({
+        email: email.trim(),
+        password,
+        options: { emailRedirectTo: location.origin + location.pathname },
+      });
+      if (error) throw error;
+      setSettings((p) => ({ ...p, enabled: true, sessionNonce: Date.now() }));
+      toastDispatch?.("Аккаунт создан", "Если Supabase попросит, подтвердите email", "☁️");
+    } catch (e) {
+      toastDispatch?.("Не удалось создать аккаунт", e.message || "Проверьте настройки Supabase", "⚠️");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const signOut = async () => {
+    try {
+      setBusy(true);
+      await status.client?.auth.signOut();
+      setSettings((p) => ({ ...p, sessionNonce: Date.now() }));
+      toastDispatch?.("Вы вышли из аккаунта", "", "☁️");
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     /*#__PURE__*/ <Modal open={open} onClose={onClose} title="Синхронизация">
@@ -1004,24 +1070,36 @@ function SyncModal({ open, onClose, settings, setSettings, status }) {
       <input value={draft.url || ""} onChange={(e) => setDraft((p) => ({ ...p, url: e.target.value }))} placeholder="https://xxxx.supabase.co" className={iCls + " mb-3"} />
       <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Anon public key</label>
       <input value={draft.anonKey || ""} onChange={(e) => setDraft((p) => ({ ...p, anonKey: e.target.value }))} placeholder="eyJ..." className={iCls + " mb-3"} />
-      <div className="flex items-end gap-2 mb-4">
-        <div className="flex-1">
-          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Sync ID</label>
-          <input value={draft.syncId || ""} onChange={(e) => setDraft((p) => ({ ...p, syncId: e.target.value }))} placeholder="одинаковый на компе и телефоне" className={iCls} />
+      <div className="grid grid-cols-1 gap-3 mb-4">
+        <div>
+          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Email</label>
+          <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@example.com" className={iCls} />
         </div>
-        <button onClick={randomId} className="px-3 py-2 rounded text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
-          Новый
-        </button>
+        <div>
+          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Пароль</label>
+          <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="минимум 6 символов" className={iCls} />
+        </div>
       </div>
       <div className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-        Статус: {status.text}. Вложения-файлы остаются локально на устройстве.
+        Статус: {status.text}{status.user?.email ? `, ${status.user.email}` : ""}. Вложения-файлы остаются локально на устройстве.
       </div>
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-wrap justify-end gap-2">
+        {status.user && (
+          <button onClick={signOut} disabled={busy} className="text-sm px-4 py-2 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 disabled:opacity-50">
+            Выйти
+          </button>
+        )}
         <button onClick={onClose} className="text-sm px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
-          Отмена
+          Закрыть
         </button>
-        <button onClick={save} className="text-sm px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">
-          Сохранить
+        <button onClick={() => saveConfig({ enabled: false })} disabled={busy} className="text-sm px-4 py-2 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50">
+          Выключить
+        </button>
+        <button onClick={signUp} disabled={busy} className="text-sm px-4 py-2 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50">
+          Регистрация
+        </button>
+        <button onClick={signIn} disabled={busy} className="text-sm px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">
+          Войти
         </button>
       </div>
     </Modal>
@@ -2571,7 +2649,7 @@ function App() {
   const [dark, toggleTheme] = useTheme();
   const [tasks, setTasks] = useLocalStorage(STORAGE_TASKS, []);
   const [lists, setLists] = useLocalStorage(STORAGE_LISTS, []);
-  const [syncSettings, setSyncSettings] = useLocalStorage(STORAGE_SYNC, { enabled: false, url: "", anonKey: "", syncId: "", lastSyncedAt: 0 });
+  const [syncSettings, setSyncSettings] = useLocalStorage(STORAGE_SYNC, { enabled: false, url: "", anonKey: "", lastSyncedAt: 0 });
   const [view, setView] = useState("myday");
   const [search, setSearch] = useState("");
   const [showCompleted, setShowCompleted] = useState(true);
