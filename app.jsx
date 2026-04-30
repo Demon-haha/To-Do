@@ -2746,6 +2746,7 @@ function App() {
   const [search, setSearch] = useState("");
   const [showCompleted, setShowCompleted] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const sidebarOpenRef = useRef(false);
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth < 768);
   const [createOpen, setCreateOpen] = useState(false);
   const [ctxMenu, setCtxMenu] = useState(null);
@@ -2772,6 +2773,51 @@ function App() {
   useEffect(() => {
     tasksRef.current = tasks;
   }, [tasks]);
+  useEffect(() => {
+    sidebarOpenRef.current = sidebarOpen;
+  }, [sidebarOpen]);
+  useEffect(() => {
+    if (!isMobile) return;
+    const touch = { x: 0, y: 0, target: null };
+    const isTypingTarget = (el) => {
+      const tag = el?.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el?.isContentEditable;
+    };
+    const onTouchStart = (e) => {
+      const t = e.touches[0];
+      touch.x = t.clientX;
+      touch.y = t.clientY;
+      touch.target = e.target;
+    };
+    const onTouchMove = (e) => {
+      const t = e.touches[0];
+      const dx = t.clientX - touch.x;
+      const dy = t.clientY - touch.y;
+      const fromRightEdge = touch.x > window.innerWidth - 58;
+      if (sidebarOpenRef.current && fromRightEdge && dx < -8) {
+        e.preventDefault();
+        return;
+      }
+      if (!isTypingTarget(touch.target) && touch.y < 150 && dy > 8 && Math.abs(dy) > Math.abs(dx)) {
+        e.preventDefault();
+      }
+    };
+    const onTouchEnd = (e) => {
+      if (!sidebarOpenRef.current) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - touch.x;
+      const dy = t.clientY - touch.y;
+      if (touch.x > window.innerWidth - 58 && dx < -45 && Math.abs(dx) > Math.abs(dy)) setSidebarOpen(false);
+    };
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [isMobile]);
   useEffect(() => {
     const h = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", h);
@@ -3383,6 +3429,11 @@ function App() {
               </button>
             ) : null;
           })()}
+          {isMobile && (
+            /*#__PURE__*/ <button onClick={() => location.reload()} className="p-2 rounded hover:bg-white/20 opacity-55" title="Обновить">
+              <L name="RefreshCw" size={17} />
+            </button>
+          )}
           {isMobile && (
             /*#__PURE__*/ <button onClick={() => setSearchOpen(true)} className="p-2 rounded hover:bg-white/20">
               <L name="Search" size={20} />
