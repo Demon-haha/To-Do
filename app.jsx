@@ -361,23 +361,29 @@ function useCloudSync(settings, setSettings, tasks, setTasks, lists, setLists) {
   const readyRef = useRef(false);
   const applyingRemoteRef = useRef(false);
   const deviceIdRef = useRef(null);
+  const settingsRef = useRef(settings);
   const tasksRef = useRef(tasks);
   const listsRef = useRef(lists);
   const userRef = useRef(null);
   if (!deviceIdRef.current) deviceIdRef.current = getDeviceId();
   useEffect(() => {
+    settingsRef.current = settings;
     tasksRef.current = tasks;
     listsRef.current = lists;
-  }, [lists, tasks]);
+  }, [lists, settings, tasks]);
 
   const applyPayload = useCallback(
     (payload) => {
       if (!payload || payload.deviceId === deviceIdRef.current) return;
       if (!Array.isArray(payload.tasks) || !Array.isArray(payload.lists)) return;
+      const remoteUpdatedAt = Number(payload.updatedAt || 0);
+      const localSyncedAt = Number(settingsRef.current?.lastSyncedAt || 0);
+      const hasLocalData = tasksRef.current.length > 0 || listsRef.current.length > 0;
+      if (hasLocalData && (!localSyncedAt || localSyncedAt > remoteUpdatedAt)) return;
       applyingRemoteRef.current = true;
       setTasks(payload.tasks);
       setLists(payload.lists);
-      setSettings((prev) => ({ ...prev, lastSyncedAt: payload.updatedAt || Date.now() }));
+      setSettings((prev) => ({ ...prev, lastSyncedAt: remoteUpdatedAt || Date.now() }));
       setSyncStatus({ state: "on", text: "Синхронизировано" });
       setTimeout(() => {
         applyingRemoteRef.current = false;
@@ -389,7 +395,7 @@ function useCloudSync(settings, setSettings, tasks, setTasks, lists, setLists) {
   const pushSnapshot = useCallback(async () => {
     const client = clientRef.current;
     const user = userRef.current;
-    if (!client || !user || !isSyncReady(settings)) return;
+    if (!client || !user || !isSyncReady(settingsRef.current)) return;
     const updatedAt = Date.now();
     const payload = {
       tasks: tasksRef.current.map(stripTaskForSync),
@@ -405,7 +411,7 @@ function useCloudSync(settings, setSettings, tasks, setTasks, lists, setLists) {
     if (error) throw error;
     setSettings((prev) => ({ ...prev, lastSyncedAt: updatedAt }));
     setSyncStatus({ state: "on", text: "Синхронизировано" });
-  }, [setSettings, settings?.enabled]);
+  }, [setSettings]);
 
   useEffect(() => {
     readyRef.current = false;
@@ -426,8 +432,19 @@ function useCloudSync(settings, setSettings, tasks, setTasks, lists, setLists) {
     const pullRemote = async (client, user) => {
       const { data, error } = await client.from(SYNC_TABLE).select("payload").eq("user_id", user.id).maybeSingle();
       if (error) throw error;
-      if (data?.payload) applyPayload(data.payload);
-      else await pushSnapshot();
+      const remote = data?.payload;
+      if (!remote) {
+        await pushSnapshot();
+        return;
+      }
+      const remoteUpdatedAt = Number(remote.updatedAt || 0);
+      const localSyncedAt = Number(settingsRef.current?.lastSyncedAt || 0);
+      const hasLocalData = tasksRef.current.length > 0 || listsRef.current.length > 0;
+      if (hasLocalData && (!localSyncedAt || localSyncedAt > remoteUpdatedAt)) {
+        await pushSnapshot();
+        return;
+      }
+      applyPayload(remote);
     };
     (async () => {
       try {
@@ -472,7 +489,7 @@ function useCloudSync(settings, setSettings, tasks, setTasks, lists, setLists) {
       pushSnapshot().catch(() => setSyncStatus({ state: "warn", text: "Ошибка синхронизации" }));
     }, 800);
     return () => clearTimeout(id);
-  }, [lists, pushSnapshot, settings, syncUser, tasks]);
+  }, [lists, pushSnapshot, settings?.enabled, syncUser, tasks]);
 
   return { ...syncStatus, user: syncUser, client: clientRef.current };
 }
@@ -607,13 +624,14 @@ function useNow(ms = 30000) {
 const workerSrc = `let T={};self.onmessage=e=>{const{type,id,delay}=e.data;if(type==="schedule"){if(T[id])clearTimeout(T[id]);T[id]=setTimeout(()=>{self.postMessage({type:"fire",id});delete T[id];},Math.max(0,delay));}else if(type==="cancel"){if(T[id]){clearTimeout(T[id]);delete T[id];}}else if(type==="cancelAll"){Object.values(T).forEach(clearTimeout);T={};} };`;
 function createWorker() {
   try {
-    return new Worker(
-      URL.createObjectURL(
-        new Blob([workerSrc], {
-          type: "application/javascript",
-        })
-      )
+    const url = URL.createObjectURL(
+      new Blob([workerSrc], {
+        type: "application/javascript",
+      })
     );
+    const worker = new Worker(url);
+    URL.revokeObjectURL(url);
+    return worker;
   } catch {
     return null;
   }
@@ -712,11 +730,6 @@ function useReminders(tasks, onFire) {
       w?.postMessage({
         type: "cancelAll",
       });
-      const swTarget = navigator.serviceWorker.controller || swReg?.active;
-      if (swReg && swTarget)
-        swTarget.postMessage({
-          type: "cancelAll",
-        });
       const now = Date.now(),
         fired = getFired();
       tasks.forEach((t) => {
@@ -728,14 +741,6 @@ function useReminders(tasks, onFire) {
           fire(t);
           return;
         }
-        if (swReg && swTarget)
-          swTarget.postMessage({
-            type: "schedule",
-            id: t.id,
-            title: "🔔 " + t.title,
-            body: t.dueDate ? "Срок: " + formatDate(t.dueDate) : "Пора выполнить задачу!",
-            when: rt,
-          });
         w?.postMessage({
           type: "schedule",
           id: t.id,
@@ -1148,6 +1153,7 @@ function DatePickerModal({ open, onClose, onPick, initial, showTime = true }) {
   const [selected, setSelected] = useState(null);
   const [h, setH] = useState(9);
   const [m, setM] = useState(0);
+  const monthSwipeRef = useRef(null);
   useEffect(() => {
     if (!open) return;
     const init = initial ? new Date(initial) : new Date();
@@ -1169,6 +1175,21 @@ function DatePickerModal({ open, onClose, onPick, initial, showTime = true }) {
   const prevMonth = () => setViewDate(new Date(y, mo - 1, 1));
   const nextMonth = () => setViewDate(new Date(y, mo + 1, 1));
   const canGoPrev = new Date(y, mo, 1) > new Date(today.getFullYear(), today.getMonth(), 1);
+  const onMonthTouchStart = (e) => {
+    const t = e.touches[0];
+    monthSwipeRef.current = { x: t.clientX, y: t.clientY };
+  };
+  const onMonthTouchEnd = (e) => {
+    if (!monthSwipeRef.current) return;
+    const start = monthSwipeRef.current;
+    monthSwipeRef.current = null;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+    if (dx < 0) nextMonth();
+    if (dx > 0 && canGoPrev) prevMonth();
+  };
   const resultDate = selected
     ? (() => {
         const r = new Date(selected);
@@ -1203,6 +1224,7 @@ function DatePickerModal({ open, onClose, onPick, initial, showTime = true }) {
           ›
         </button>
       </div>
+      <div onTouchStart={onMonthTouchStart} onTouchEnd={onMonthTouchEnd}>
       <div className="grid grid-cols-7 gap-1 mb-1">
         {RU_WD.map((w) => (
           /*#__PURE__*/ <div key={w} className="text-[11px] text-center text-gray-500 dark:text-gray-400 py-1">
@@ -1226,6 +1248,7 @@ function DatePickerModal({ open, onClose, onPick, initial, showTime = true }) {
             </button>
           );
         })}
+      </div>
       </div>
       {showTime && (
         /*#__PURE__*/ <div className="flex items-center gap-2 mb-3">
@@ -1364,7 +1387,7 @@ function FileViewer({ file, onClose }) {
 }
 
 // ─── TASK DETAIL PANEL ────────────────────────────────────────────
-function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpdate, onToggle, onStar, onDelete, onOpenDate, onOpenReminder, onOpenRecurrence }) {
+function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpdate, onToggle, onStar, onDelete, onAddToMyDay, onOpenDate, onOpenReminder, onOpenRecurrence }) {
   const task = tasks.find((t) => t.id === taskId);
   const [titleEdit, setTitleEdit] = useState(false);
   const [titleVal, setTitleVal] = useState("");
@@ -1400,6 +1423,12 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
     const dx = t.clientX - start.x;
     const dy = t.clientY - start.y;
     if (start.y < 140 && dy > 70 && Math.abs(dx) < 80) onClose();
+  };
+  const onPanelTouchMove = (e) => {
+    if (!isMobile || !swipeDownRef.current) return;
+    const t = e.touches[0];
+    const dy = t.clientY - swipeDownRef.current.y;
+    if (swipeDownRef.current.y < 140 && dy > 12) e.preventDefault();
   };
   const commitTitle = () => {
     const v = titleVal.trim();
@@ -1459,9 +1488,11 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
       <div
         className={panelCls}
         onTouchStart={onPanelTouchStart}
+        onTouchMove={onPanelTouchMove}
         onTouchEnd={onPanelTouchEnd}
         style={{
           animation: "slideUp .2s ease-out",
+          overscrollBehaviorY: isMobile ? "contain" : undefined,
         }}>
         <style>{`@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:none;opacity:1}}`}</style>
         <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-700/40 safe-top">
@@ -1623,7 +1654,9 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
           </div>
           <div
             onClick={() => {
-              if (!myDayLocked) onUpdate(task.id, { myDay: !task.myDay });
+              if (myDayLocked) return;
+              if (task.myDay) onUpdate(task.id, { myDay: false });
+              else onAddToMyDay?.(task.id);
             }}
             className={`w-full flex items-center gap-4 px-5 py-4 border-b border-gray-700/30 transition-colors ${myDayLocked ? "cursor-default" : "cursor-pointer hover:bg-gray-800/30"}`}>
             <L name="Sun" size={20} className={task.myDay ? "text-yellow-400" : "text-gray-500"} />
@@ -2302,7 +2335,7 @@ function Sidebar({
   return (
     /*#__PURE__*/ <aside
       className={`sidebar-bg border-r border-gray-200 dark:border-gray-700/60 flex flex-col w-72 shrink-0
-        ${isMobile ? "fixed inset-y-0 left-0 z-40 shadow-2xl transition-transform duration-300 ease-out" : ""}
+        ${isMobile ? "fixed inset-y-0 left-0 z-[70] shadow-2xl transition-transform duration-300 ease-out" : ""}
         ${isMobile && !open ? "-translate-x-full" : "translate-x-0"}`}>
       <div className="px-3 pt-3 pb-2 flex items-center justify-between gap-2 safe-top">
         <div className="flex items-center gap-2 min-w-0">
@@ -2591,7 +2624,6 @@ function TaskComposer({
 
   // Мобильный режим — FAB (свёрнутый кружок)
   if (isMobile && !fabOpen) {
-    if (sidebarOpen) return null;
     return (
       /*#__PURE__*/ <button
         onClick={openFab}
@@ -2626,6 +2658,18 @@ function TaskComposer({
             />
             {value.trim() && (
               /*#__PURE__*/ <button
+                onClick={() => {
+                  setValue("");
+                  if (taRef.current) taRef.current.style.height = "auto";
+                  taRef.current?.focus();
+                }}
+                aria-label="РћС‡РёСЃС‚РёС‚СЊ С‚РµРєСЃС‚"
+                className="shrink-0 w-8 h-8 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg flex items-center justify-center transition-colors">
+                <L name="X" size={16} />
+              </button>
+            )}
+            {value.trim() && (
+              /*#__PURE__*/ <button
                 onClick={submit}
                 aria-label="Добавить задачу"
                 className="shrink-0 w-8 h-8 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg flex items-center justify-center transition-colors">
@@ -2638,7 +2682,7 @@ function TaskComposer({
               {pickedDate ? (
                 <div className={iconBtn(true)}>
                   <L name="CalendarDays" size={14} />
-                  <span onClick={onOpenCalendar} className="cursor-pointer">{formatDate(pickedDate)}</span>
+                  <span onClick={onOpenCalendar} className="cursor-pointer">{formatDateOnly(pickedDate)}</span>
                   <span onClick={onClearComposerDate} className="ml-0.5 hover:text-red-500 cursor-pointer"><L name="X" size={11} /></span>
                 </div>
               ) : (
@@ -2682,6 +2726,7 @@ function App() {
   const [tasks, setTasks] = useLocalStorage(STORAGE_TASKS, []);
   const [lists, setLists] = useLocalStorage(STORAGE_LISTS, []);
   const [syncSettings, setSyncSettings] = useLocalStorage(STORAGE_SYNC, { enabled: false, lastSyncedAt: 0 });
+  const tasksRef = useRef(tasks);
   const [view, setView] = useState("myday");
   const [search, setSearch] = useState("");
   const [showCompleted, setShowCompleted] = useState(true);
@@ -2709,6 +2754,9 @@ function App() {
   const [colorPicker, setColorPicker] = useState(null);
   const [notifStatus, setNotifStatus] = useState(() => ("Notification" in window ? Notification.permission : "denied"));
   const syncStatus = useCloudSync(syncSettings, setSyncSettings, tasks, setTasks, lists, setLists);
+  useEffect(() => {
+    tasksRef.current = tasks;
+  }, [tasks]);
   useEffect(() => {
     const h = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", h);
@@ -2902,7 +2950,17 @@ function App() {
       ),
     [setTasks]
   );
-  const deleteTask = useCallback((id) => setTasks((p) => p.filter((t) => t.id !== id)), [setTasks]);
+  const deleteTaskFiles = useCallback((task) => {
+    (task?.files || []).forEach((file) => deleteFileBlob(file.id));
+  }, []);
+  const deleteTask = useCallback(
+    (id) => {
+      const task = tasksRef.current?.find((t) => t.id === id);
+      deleteTaskFiles(task);
+      setTasks((p) => p.filter((t) => t.id !== id));
+    },
+    [deleteTaskFiles, setTasks]
+  );
   const clearDate = useCallback(
     (id) =>
       updateTask(id, {
@@ -2941,6 +2999,7 @@ function App() {
     [setLists]
   );
   const deleteList = (id) => {
+    tasksRef.current?.filter((t) => t.listId === id).forEach(deleteTaskFiles);
     setLists((p) => p.filter((l) => l.id !== id));
     setTasks((p) => p.filter((t) => t.listId !== id));
   };
@@ -2968,7 +3027,7 @@ function App() {
       ? tasks.filter((t) => t.title.toLowerCase().includes(q))
       : (() => {
           let l = tasks;
-          if (view === "myday") l = l.filter((t) => !t.listId && (t.myDay || isSameDay(t.dueDate)));
+          if (view === "myday") l = l.filter((t) => t.myDay || isSameDay(t.dueDate));
           else if (view === "important") l = l.filter((t) => t.important);
           else if (view === "planned") l = l.filter((t) => t.dueDate);
           else if (view.startsWith("list:")) {
@@ -2990,7 +3049,7 @@ function App() {
     tasks.forEach((t) => {
       if (t.completed) return;
       if (t.deferUntil && new Date(t.deferUntil) > now) return;
-      if (!t.listId && (t.myDay || isSameDay(t.dueDate))) c.myday = (c.myday || 0) + 1;
+      if (t.myDay || isSameDay(t.dueDate)) c.myday = (c.myday || 0) + 1;
       if (t.important) c.important = (c.important || 0) + 1;
       if (t.dueDate) c.planned = (c.planned || 0) + 1;
       if (t.listId) c["list:" + t.listId] = (c["list:" + t.listId] || 0) + 1;
@@ -3283,7 +3342,7 @@ function App() {
         toggleTheme={toggleTheme}
       />
       {isMobile && <div
-        className={`fixed inset-0 bg-black/40 z-30 transition-opacity duration-300 ${sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+        className={`fixed inset-0 bg-black/40 z-[60] transition-opacity duration-300 ${sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onClick={() => setSidebarOpen(false)}
       />}
       <main className="flex-1 flex flex-col min-w-0">
@@ -3491,6 +3550,10 @@ function App() {
           onToggle={toggleTask}
           onStar={starTask}
           onDelete={deleteTask}
+          onAddToMyDay={(id) => {
+            updateTask(id, { myDay: true });
+            setView("myday");
+          }}
           onOpenDate={(task) => {
             setDatePicker({
               id: task.id,
