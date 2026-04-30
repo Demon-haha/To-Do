@@ -2595,6 +2595,13 @@ function TaskComposer({
   const [value, setValue] = useState("");
   const [fabOpen, setFabOpen] = useState(false);
   const taRef = useRef(null);
+  const clearTapRef = useRef(0);
+  useEffect(() => {
+    if (!isMobile || !sidebarOpen) return;
+    taRef.current?.blur();
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    setFabOpen(false);
+  }, [isMobile, sidebarOpen]);
   const submit = () => {
     const v = value.trim();
     if (!v) return;
@@ -2620,6 +2627,18 @@ function TaskComposer({
   const openFab = () => {
     setFabOpen(true);
     setTimeout(() => taRef.current?.focus(), 60);
+  };
+  const clearText = () => {
+    const now = Date.now();
+    if (now - clearTapRef.current > 900) {
+      clearTapRef.current = now;
+      toastDispatch?.("Нажмите ещё раз", "Текст очистится после второго быстрого нажатия", "×");
+      return;
+    }
+    clearTapRef.current = 0;
+    setValue("");
+    if (taRef.current) taRef.current.style.height = "auto";
+    taRef.current?.focus();
   };
 
   // Мобильный режим — FAB (свёрнутый кружок)
@@ -2658,11 +2677,7 @@ function TaskComposer({
             />
             {value.trim() && (
               /*#__PURE__*/ <button
-                onClick={() => {
-                  setValue("");
-                  if (taRef.current) taRef.current.style.height = "auto";
-                  taRef.current?.focus();
-                }}
+                onClick={clearText}
                 aria-label="РћС‡РёСЃС‚РёС‚СЊ С‚РµРєСЃС‚"
                 className="shrink-0 w-8 h-8 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg flex items-center justify-center transition-colors">
                 <L name="X" size={16} />
@@ -3302,6 +3317,10 @@ function App() {
     }[view];
   }, [view, lists, search, filtered.length]);
   const swipeRef = useRef(null);
+  const openSidebar = useCallback(() => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    setSidebarOpen(true);
+  }, []);
   const onSwipeStart = useCallback((e) => {
     const t = e.touches[0];
     swipeRef.current = { x: t.clientX, y: t.clientY };
@@ -3314,9 +3333,9 @@ function App() {
     const dx = t.clientX - start.x;
     const dy = t.clientY - start.y;
     if (Math.abs(dy) > Math.abs(dx) * 1.5) return;
-    if (dx > 50 && !sidebarOpen && start.x < 40) setSidebarOpen(true);
+    if (dx > 50 && !sidebarOpen && start.x < 40) openSidebar();
     if (dx < -50 && sidebarOpen) setSidebarOpen(false);
-  }, [sidebarOpen]);
+  }, [openSidebar, sidebarOpen]);
   return (
     /*#__PURE__*/ <div className="flex h-full w-full" onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd}>
       <Sidebar
@@ -3348,7 +3367,7 @@ function App() {
       <main className="flex-1 flex flex-col min-w-0">
         <header className={`bg-gradient-to-r ${viewMeta.bg} text-white px-4 sm:px-6 py-5 flex items-center gap-3 safe-top safe-right`}>
           {isMobile && (
-            /*#__PURE__*/ <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 rounded hover:bg-white/20">
+            /*#__PURE__*/ <button onClick={openSidebar} className="p-2 -ml-2 rounded hover:bg-white/20">
               <L name="Menu" size={24} />
             </button>
           )}

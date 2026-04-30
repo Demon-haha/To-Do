@@ -2733,6 +2733,13 @@ function TaskComposer({
   const [value, setValue] = useState("");
   const [fabOpen, setFabOpen] = useState(false);
   const taRef = useRef(null);
+  const clearTapRef = useRef(0);
+  useEffect(() => {
+    if (!isMobile || !sidebarOpen) return;
+    taRef.current?.blur();
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    setFabOpen(false);
+  }, [isMobile, sidebarOpen]);
   const submit = () => {
     const v = value.trim();
     if (!v) return;
@@ -2757,6 +2764,18 @@ function TaskComposer({
   const openFab = () => {
     setFabOpen(true);
     setTimeout(() => taRef.current?.focus(), 60);
+  };
+  const clearText = () => {
+    const now = Date.now();
+    if (now - clearTapRef.current > 900) {
+      clearTapRef.current = now;
+      toastDispatch?.("Нажмите ещё раз", "Текст очистится после второго быстрого нажатия", "×");
+      return;
+    }
+    clearTapRef.current = 0;
+    setValue("");
+    if (taRef.current) taRef.current.style.height = "auto";
+    taRef.current?.focus();
   };
   if (isMobile && !fabOpen) {
     return React.createElement("button", {
@@ -2802,11 +2821,7 @@ function TaskComposer({
     placeholder: "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0437\u0430\u0434\u0430\u0447\u0443",
     className: "flex-1 min-w-0 bg-transparent outline-none text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 resize-none overflow-hidden leading-5"
   }), value.trim() && React.createElement("button", {
-    onClick: () => {
-      setValue("");
-      if (taRef.current) taRef.current.style.height = "auto";
-      taRef.current?.focus();
-    },
+    onClick: clearText,
     "aria-label": "\u0420\u045B\u0421\u2021\u0420\u0451\u0421\u0403\u0421\u201A\u0420\u0451\u0421\u201A\u0421\u040A \u0421\u201A\u0420\xB5\u0420\u0454\u0421\u0403\u0421\u201A",
     className: "shrink-0 w-8 h-8 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg flex items-center justify-center transition-colors"
   }, React.createElement(L, {
@@ -3311,6 +3326,10 @@ function App() {
     }[view];
   }, [view, lists, search, filtered.length]);
   const swipeRef = useRef(null);
+  const openSidebar = useCallback(() => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    setSidebarOpen(true);
+  }, []);
   const onSwipeStart = useCallback(e => {
     const t = e.touches[0];
     swipeRef.current = {
@@ -3326,9 +3345,9 @@ function App() {
     const dx = t.clientX - start.x;
     const dy = t.clientY - start.y;
     if (Math.abs(dy) > Math.abs(dx) * 1.5) return;
-    if (dx > 50 && !sidebarOpen && start.x < 40) setSidebarOpen(true);
+    if (dx > 50 && !sidebarOpen && start.x < 40) openSidebar();
     if (dx < -50 && sidebarOpen) setSidebarOpen(false);
-  }, [sidebarOpen]);
+  }, [openSidebar, sidebarOpen]);
   return React.createElement("div", {
     className: "flex h-full w-full",
     onTouchStart: onSwipeStart,
@@ -3362,7 +3381,7 @@ function App() {
   }, React.createElement("header", {
     className: `bg-gradient-to-r ${viewMeta.bg} text-white px-4 sm:px-6 py-5 flex items-center gap-3 safe-top safe-right`
   }, isMobile && React.createElement("button", {
-    onClick: () => setSidebarOpen(true),
+    onClick: openSidebar,
     className: "p-2 -ml-2 rounded hover:bg-white/20"
   }, React.createElement(L, {
     name: "Menu",
