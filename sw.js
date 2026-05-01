@@ -11,7 +11,7 @@ self.addEventListener("activate", (event) => {
     Promise.all([
       self.clients.claim(),
       caches.keys().then((keys) =>
-        Promise.all(keys.filter((key) => /sync|todo|mstodo/i.test(key)).map((key) => caches.delete(key)))
+        Promise.all(keys.filter((key) => /todo|mstodo/i.test(key)).map((key) => caches.delete(key)))
       ),
     ])
   );

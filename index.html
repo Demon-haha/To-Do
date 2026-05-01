@@ -17,12 +17,11 @@
       if (localStorage.getItem("mstodo_theme") === "dark") {
         document.documentElement.classList.add("dark");
       }
-      localStorage.removeItem("mstodo_sync_settings_v1");
     } catch {}
     try {
       if ("caches" in window) {
         caches.keys().then((keys) => keys.forEach((key) => {
-          if (/sync|todo|mstodo/i.test(key)) caches.delete(key);
+          if (/todo|mstodo/i.test(key)) caches.delete(key);
         }));
       }
     } catch {}
@@ -35,8 +34,6 @@
   <script crossorigin src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
   <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
   <script crossorigin src="https://cdn.jsdelivr.net/npm/lucide@0.445.0/dist/umd/lucide.min.js" onload="window.dispatchEvent(new Event('lucide-ready'))" onerror="window.Lucide={};window.dispatchEvent(new Event('lucide-ready'))"></script>
-  <script crossorigin src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="sync-config.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
   <link rel="stylesheet" href="tailwind.generated.css" />
@@ -75,9 +72,6 @@ const STORAGE_THEME = "mstodo_theme";
 const FIRED_KEY = "mstodo_fired_reminders_v2";
 const FILE_DB_NAME = "mstodo_files_v1";
 const FILE_STORE = "files";
-const STORAGE_SUPABASE_URL = "mstodo_supabase_url";
-const SUPABASE_TABLE = "todos";
-const SUPABASE_SYNC_TITLE = "__mstodo_snapshot__";
 const T = {
   appName: "To Do",
   views: {
@@ -97,10 +91,6 @@ const T = {
     refresh: "Обновить",
     searchTasks: "Поиск задач",
     createList: "Создать список",
-    sync: "\u0421\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0430\u0446\u0438\u044f",
-    signIn: "\u0412\u043e\u0439\u0442\u0438",
-    signUp: "\u0421\u043e\u0437\u0434\u0430\u0442\u044c \u0430\u043a\u043a\u0430\u0443\u043d\u0442",
-    signOut: "\u0412\u044b\u0439\u0442\u0438",
     listColor: "\u0426\u0432\u0435\u0442 \u0441\u043f\u0438\u0441\u043a\u0430",
     clearText: "Очистить текст",
     addTask: "Добавить задачу"
@@ -394,244 +384,6 @@ function getFileBlob(id) {
 }
 function deleteFileBlob(id) {
   return fileDbRequest("readwrite", store => store.delete(id)).catch(() => {});
-}
-function getSupabaseConfig() {
-  const cfg = window.MSTODO_SUPABASE || {};
-  let savedUrl = "";
-  try {
-    savedUrl = localStorage.getItem(STORAGE_SUPABASE_URL) || "";
-  } catch {}
-  return {
-    url: (savedUrl || cfg.url || "").trim(),
-    key: (cfg.publishableKey || "").trim()
-  };
-}
-function isSupabaseConfigured() {
-  const cfg = getSupabaseConfig();
-  return !!(cfg.url && cfg.key && window.supabase?.createClient);
-}
-function createSupabaseClient() {
-  const cfg = getSupabaseConfig();
-  if (!cfg.url || !cfg.key) throw new Error("Supabase URL or publishable key is missing");
-  if (!window.supabase?.createClient) throw new Error("Supabase client is not loaded");
-  return window.supabase.createClient(cfg.url, cfg.key, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true
-    },
-    realtime: {
-      params: {
-        eventsPerSecond: 2
-      }
-    }
-  });
-}
-function stripTaskForCloud(task) {
-  return {
-    ...task,
-    files: (task.files || []).map(({
-      data,
-      ...file
-    }) => file)
-  };
-}
-function useSupabaseSync(tasks, setTasks, lists, setLists, configVersion = 0) {
-  const [status, setStatus] = useState({
-    state: "off",
-    text: "Синхронизация не настроена"
-  });
-  const [user, setUser] = useState(null);
-  const clientRef = useRef(null);
-  const readyRef = useRef(false);
-  const applyingRef = useRef(false);
-  const deviceIdRef = useRef(uid());
-  const tasksRef = useRef(tasks);
-  const listsRef = useRef(lists);
-  useEffect(() => {
-    tasksRef.current = tasks;
-    listsRef.current = lists;
-  }, [tasks, lists]);
-  const applyPayload = useCallback((payload, deviceId) => {
-    if (!payload || deviceId === deviceIdRef.current) return;
-    if (!Array.isArray(payload.tasks) || !Array.isArray(payload.lists)) return;
-    applyingRef.current = true;
-    setTasks(payload.tasks);
-    setLists(payload.lists);
-    setStatus({
-      state: "on",
-      text: "Синхронизировано"
-    });
-    setTimeout(() => {
-      applyingRef.current = false;
-    }, 800);
-  }, [setLists, setTasks]);
-  const pushSnapshot = useCallback(async () => {
-    const client = clientRef.current;
-    const currentUser = user;
-    if (!client || !currentUser) return;
-    const payload = {
-      tasks: tasksRef.current.map(stripTaskForCloud),
-      lists: listsRef.current,
-      updatedAt: Date.now()
-    };
-    const {
-      error
-    } = await client.from(SUPABASE_TABLE).upsert({
-      user_id: currentUser.id,
-      title: SUPABASE_SYNC_TITLE,
-      is_completed: false,
-      payload,
-      updated_at: new Date(payload.updatedAt).toISOString(),
-      device_id: deviceIdRef.current
-    }, {
-      onConflict: "user_id"
-    });
-    if (error) throw error;
-    setStatus({
-      state: "on",
-      text: "Синхронизировано"
-    });
-  }, [user]);
-  const loadSnapshot = useCallback(async (client, currentUser) => {
-    setStatus({
-      state: "syncing",
-      text: "Загрузка..."
-    });
-    const {
-      data,
-      error
-    } = await client.from(SUPABASE_TABLE).select("payload,device_id").eq("user_id", currentUser.id).maybeSingle();
-    if (error) throw error;
-    if (data?.payload) applyPayload(data.payload, data.device_id);else await pushSnapshot();
-    readyRef.current = true;
-    setStatus({
-      state: "on",
-      text: "Синхронизация включена"
-    });
-  }, [applyPayload, pushSnapshot]);
-  useEffect(() => {
-    if (!isSupabaseConfigured()) {
-      setStatus({
-        state: "warn",
-        text: "Укажите Supabase URL"
-      });
-      return;
-    }
-    let alive = true;
-    const client = createSupabaseClient();
-    clientRef.current = client;
-    client.auth.getSession().then(({
-      data
-    }) => {
-      if (!alive) return;
-      setUser(data.session?.user || null);
-      setStatus(data.session?.user ? {
-        state: "syncing",
-        text: "Подключение..."
-      } : {
-        state: "off",
-        text: "Войдите в аккаунт"
-      });
-    });
-    const {
-      data: sub
-    } = client.auth.onAuthStateChange((_event, session) => {
-      if (!alive) return;
-      readyRef.current = false;
-      setUser(session?.user || null);
-      setStatus(session?.user ? {
-        state: "syncing",
-        text: "Подключение..."
-      } : {
-        state: "off",
-        text: "Войдите в аккаунт"
-      });
-    });
-    return () => {
-      alive = false;
-      sub?.subscription?.unsubscribe?.();
-    };
-  }, [configVersion]);
-  useEffect(() => {
-    const client = clientRef.current;
-    if (!client || !user) return;
-    let channel = null;
-    loadSnapshot(client, user).catch(e => {
-      console.error(e);
-      setStatus({
-        state: "warn",
-        text: "Ошибка синхронизации"
-      });
-    });
-    channel = client.channel("todos-" + user.id).on("postgres_changes", {
-      event: "*",
-      schema: "public",
-      table: SUPABASE_TABLE,
-      filter: "user_id=eq." + user.id
-    }, event => {
-      applyPayload(event.new?.payload, event.new?.device_id);
-    }).subscribe();
-    return () => {
-      if (channel) client.removeChannel(channel);
-    };
-  }, [applyPayload, loadSnapshot, user]);
-  useEffect(() => {
-    if (!readyRef.current || applyingRef.current || !user) return;
-    setStatus({
-      state: "syncing",
-      text: "Сохранение..."
-    });
-    const id = setTimeout(() => {
-      pushSnapshot().catch(e => {
-        console.error(e);
-        setStatus({
-          state: "warn",
-          text: "Ошибка синхронизации"
-        });
-      });
-    }, 700);
-    return () => clearTimeout(id);
-  }, [tasks, lists, pushSnapshot, user]);
-  const signIn = useCallback(async (email, password) => {
-    const client = clientRef.current || createSupabaseClient();
-    clientRef.current = client;
-    const {
-      error
-    } = await client.auth.signInWithPassword({
-      email,
-      password
-    });
-    if (error) throw error;
-  }, []);
-  const signUp = useCallback(async (email, password) => {
-    const client = clientRef.current || createSupabaseClient();
-    clientRef.current = client;
-    const {
-      error
-    } = await client.auth.signUp({
-      email,
-      password
-    });
-    if (error) throw error;
-  }, []);
-  const signOut = useCallback(async () => {
-    await clientRef.current?.auth.signOut();
-    readyRef.current = false;
-    setUser(null);
-    setStatus({
-      state: "off",
-      text: "Войдите в аккаунт"
-    });
-  }, []);
-  return {
-    ...status,
-    user,
-    configured: isSupabaseConfigured(),
-    signIn,
-    signUp,
-    signOut
-  };
 }
 function useTheme() {
   const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
@@ -1098,95 +850,6 @@ function ColorPickerModal({
     onClick: onClose,
     className: "ui-c-20"
   }, "\u041E\u0442\u043C\u0435\u043D\u0430")));
-}
-function AccountModal({
-  open,
-  onClose,
-  sync,
-  onConfigSaved
-}) {
-  const [url, setUrl] = useState(() => getSupabaseConfig().url);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    if (open) setUrl(getSupabaseConfig().url);
-  }, [open]);
-  const urlReady = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(url.trim());
-  const canSubmit = !!(email.trim() && password.length >= 6 && urlReady && window.supabase?.createClient);
-  const saveUrl = () => {
-    const normalized = url.trim().replace(/\/+$/, "");
-    localStorage.setItem(STORAGE_SUPABASE_URL, normalized);
-    if (window.MSTODO_SUPABASE) window.MSTODO_SUPABASE.url = normalized;
-    onConfigSaved?.();
-  };
-  const run = async fn => {
-    if (!canSubmit && fn !== sync.signOut) return;
-    try {
-      setBusy(true);
-      if (fn !== sync.signOut) saveUrl();
-      await fn(email.trim(), password);
-      onClose();
-    } catch (e) {
-      toastDispatch?.("?? ??????? ????????? ????", e.message || "????????? ????? ? ??????", "??");
-    } finally {
-      setBusy(false);
-    }
-  };
-  return React.createElement(Modal, {
-    open: open,
-    onClose: onClose,
-    title: T.actions.sync
-  }, !urlReady && React.createElement("div", {
-    className: "ui-c-25"
-  }, "???????? URL ??????? ???? https://xxxxx.supabase.co. ????????? ???? ???? ????????? ??????."), sync.user ? React.createElement("div", {
-    className: "ui-c-26"
-  }, React.createElement("div", {
-    className: "ui-c-23"
-  }, React.createElement(L, {
-    name: "UserRound",
-    size: 16
-  }), " ", sync.user.email), React.createElement("div", {
-    className: "ui-c-29"
-  }, sync.text), React.createElement("div", {
-    className: "ui-c-22"
-  }, React.createElement("button", {
-    disabled: busy,
-    onClick: () => run(sync.signOut),
-    className: "ui-c-31"
-  }, T.actions.signOut))) : React.createElement("div", {
-    className: "ui-c-26"
-  }, React.createElement("input", {
-    value: url,
-    onChange: e => setUrl(e.target.value),
-    type: "url",
-    placeholder: "https://xxxxx.supabase.co",
-    className: "ui-c-27"
-  }), React.createElement("input", {
-    value: email,
-    onChange: e => setEmail(e.target.value),
-    type: "email",
-    placeholder: "you@example.com",
-    className: "ui-c-27"
-  }), React.createElement("input", {
-    value: password,
-    onChange: e => setPassword(e.target.value),
-    type: "password",
-    placeholder: "??????? 6 ????????",
-    className: "ui-c-27"
-  }), React.createElement("div", {
-    className: "ui-c-30"
-  }, React.createElement("button", {
-    disabled: !canSubmit || busy,
-    onClick: () => run(sync.signUp),
-    className: "ui-c-32"
-  }, T.actions.signUp), React.createElement("button", {
-    disabled: !canSubmit || busy,
-    onClick: () => run(sync.signIn),
-    className: "ui-c-21"
-  }, T.actions.signIn)), React.createElement("div", {
-    className: "ui-c-29"
-  }, urlReady ? sync.text : "????? Supabase URL")));
 }
 function DatePickerModal({
   open,
@@ -2404,8 +2067,6 @@ function Sidebar({
   onEnableNotif,
   onTestNotif,
   onRefresh,
-  sync,
-  onOpenSync,
   dark,
   toggleTheme
 }) {
@@ -2527,17 +2188,7 @@ function Sidebar({
   }, React.createElement(L, {
     name: "Plus",
     size: 18
-  }), " ", T.actions.createList), React.createElement("button", {
-    onClick: onOpenSync,
-    className: "ui-c-151"
-  }, React.createElement(L, {
-    name: sync.user ? "CloudCheck" : sync.state === "syncing" ? "RefreshCw" : "Cloud",
-    size: 18
-  }), React.createElement("span", {
-    className: "ui-c-110"
-  }, T.actions.sync), React.createElement("span", {
-    className: `w-2 h-2 rounded-full ${sync.user ? "bg-green-500" : sync.state === "warn" ? "bg-amber-500" : "bg-gray-400"}`
-  }))));
+  }), " ", T.actions.createList)));
 }
 const TaskRow = memo(function TaskRow({
   task,
@@ -2884,8 +2535,6 @@ function App() {
   const [movePicker, setMovePicker] = useState(null);
   const [openTask, setOpenTask] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [accountOpen, setAccountOpen] = useState(false);
-  const [syncConfigVersion, setSyncConfigVersion] = useState(0);
   const now = useNow();
   const nowTs = now.getTime();
   const [composerDate, setComposerDate] = useState(null);
@@ -2900,7 +2549,6 @@ function App() {
   const [reminderPicker, setReminderPicker] = useState(null);
   const [colorPicker, setColorPicker] = useState(null);
   const [notifStatus, setNotifStatus] = useState(() => "Notification" in window ? Notification.permission : "denied");
-  const sync = useSupabaseSync(tasks, setTasks, lists, setLists, syncConfigVersion);
   useEffect(() => {
     tasksRef.current = tasks;
   }, [tasks]);
@@ -3407,8 +3055,6 @@ function App() {
     onEnableNotif: enableNotif,
     onTestNotif: testNotif,
     onRefresh: () => location.reload(),
-    sync: sync,
-    onOpenSync: () => setAccountOpen(true),
     dark: dark,
     toggleTheme: toggleTheme
   }), isMobile && React.createElement("div", {
@@ -3520,11 +3166,6 @@ function App() {
     open: createOpen,
     onClose: () => setCreateOpen(false),
     onCreate: createList
-  }), React.createElement(AccountModal, {
-    open: accountOpen,
-    onClose: () => setAccountOpen(false),
-    sync: sync,
-    onConfigSaved: () => setSyncConfigVersion(v => v + 1)
   }), React.createElement(ColorPickerModal, {
     open: !!colorPicker,
     onClose: () => setColorPicker(null),
