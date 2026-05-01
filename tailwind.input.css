@@ -212,7 +212,6 @@
   .ui-c-149 { @apply border-t border-gray-200 dark:border-gray-700 p-2 space-y-0.5 safe-bottom; }
   .ui-c-150 { @apply px-3 py-1.5 text-[11px] text-red-500 flex items-center gap-1; }
   .ui-c-151 { @apply w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/50; }
-  .ui-c-152 { @apply w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/50; }
   .ui-c-153 { @apply fade-in rounded-md mb-1.5 transition-shadow border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow-sm dark:hover:border-gray-600 task-row; }
   .ui-c-154 { @apply flex items-center gap-3 px-4 py-3; }
   .ui-c-155 { @apply task-check-btn relative w-6 h-6 shrink-0 flex items-center justify-center; }

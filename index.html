@@ -17,6 +17,14 @@
       if (localStorage.getItem("mstodo_theme") === "dark") {
         document.documentElement.classList.add("dark");
       }
+      localStorage.removeItem("mstodo_sync_settings_v1");
+    } catch {}
+    try {
+      if ("caches" in window) {
+        caches.keys().then((keys) => keys.forEach((key) => {
+          if (/sync|todo|mstodo/i.test(key)) caches.delete(key);
+        }));
+      }
     } catch {}
   </script>
 
@@ -27,8 +35,6 @@
   <script crossorigin src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
   <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
   <script crossorigin src="https://cdn.jsdelivr.net/npm/lucide@0.445.0/dist/umd/lucide.min.js" onload="window.dispatchEvent(new Event('lucide-ready'))" onerror="window.Lucide={};window.dispatchEvent(new Event('lucide-ready'))"></script>
-  <script crossorigin src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="sync-config.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
   <link rel="stylesheet" href="tailwind.generated.css" />
@@ -64,12 +70,9 @@ const {
 const STORAGE_TASKS = "mstodo_clone_tasks_v3";
 const STORAGE_LISTS = "mstodo_clone_lists_v3";
 const STORAGE_THEME = "mstodo_theme";
-const STORAGE_SYNC = "mstodo_sync_settings_v1";
-const STORAGE_DEVICE = "mstodo_device_id";
 const FIRED_KEY = "mstodo_fired_reminders_v2";
 const FILE_DB_NAME = "mstodo_files_v1";
 const FILE_STORE = "files";
-const SYNC_TABLE = "todo_user_sync";
 const T = {
   appName: "To Do",
   views: {
@@ -89,7 +92,6 @@ const T = {
     refresh: "Обновить",
     searchTasks: "Поиск задач",
     createList: "Создать список",
-    sync: "Синхронизация",
     listColor: "\u0426\u0432\u0435\u0442 \u0441\u043f\u0438\u0441\u043a\u0430",
     clearText: "Очистить текст",
     addTask: "Добавить задачу"
@@ -381,234 +383,6 @@ function getFileBlob(id) {
 }
 function deleteFileBlob(id) {
   return fileDbRequest("readwrite", store => store.delete(id)).catch(() => {});
-}
-function getDeviceId() {
-  try {
-    const existing = localStorage.getItem(STORAGE_DEVICE);
-    if (existing) return existing;
-    const next = uid();
-    localStorage.setItem(STORAGE_DEVICE, next);
-    return next;
-  } catch {
-    return uid();
-  }
-}
-function stripTaskForSync(task) {
-  return {
-    ...task,
-    files: (task.files || []).map(({
-      data,
-      ...file
-    }) => file)
-  };
-}
-function isSyncReady(settings) {
-  const cfg = window.MSTODO_SYNC || {};
-  return !!(settings?.enabled && cfg.supabaseUrl?.trim() && cfg.supabaseAnonKey?.trim());
-}
-function createSyncClient() {
-  const api = window.supabase;
-  const cfg = window.MSTODO_SYNC || {};
-  if (!api?.createClient) throw new Error("Supabase library is not loaded");
-  if (!cfg.supabaseUrl?.trim() || !cfg.supabaseAnonKey?.trim()) throw new Error("Sync config is missing");
-  return api.createClient(cfg.supabaseUrl.trim(), cfg.supabaseAnonKey.trim(), {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true
-    },
-    realtime: {
-      params: {
-        eventsPerSecond: 2
-      }
-    }
-  });
-}
-function useCloudSync(settings, setSettings, tasks, setTasks, lists, setLists) {
-  const [syncStatus, setSyncStatus] = useState({
-    state: "off",
-    text: "Синхронизация выключена"
-  });
-  const [syncUser, setSyncUser] = useState(null);
-  const clientRef = useRef(null);
-  const readyRef = useRef(false);
-  const applyingRemoteRef = useRef(false);
-  const deviceIdRef = useRef(null);
-  const settingsRef = useRef(settings);
-  const tasksRef = useRef(tasks);
-  const listsRef = useRef(lists);
-  const userRef = useRef(null);
-  if (!deviceIdRef.current) deviceIdRef.current = getDeviceId();
-  useEffect(() => {
-    settingsRef.current = settings;
-    tasksRef.current = tasks;
-    listsRef.current = lists;
-  }, [lists, settings, tasks]);
-  const applyPayload = useCallback(payload => {
-    if (!payload || payload.deviceId === deviceIdRef.current) return;
-    if (!Array.isArray(payload.tasks) || !Array.isArray(payload.lists)) return;
-    const remoteUpdatedAt = Number(payload.updatedAt || 0);
-    const localSyncedAt = Number(settingsRef.current?.lastSyncedAt || 0);
-    const hasLocalData = tasksRef.current.length > 0 || listsRef.current.length > 0;
-    if (hasLocalData && (!localSyncedAt || localSyncedAt > remoteUpdatedAt)) return;
-    applyingRemoteRef.current = true;
-    setTasks(payload.tasks);
-    setLists(payload.lists);
-    setSettings(prev => ({
-      ...prev,
-      lastSyncedAt: remoteUpdatedAt || Date.now()
-    }));
-    setSyncStatus({
-      state: "on",
-      text: "Синхронизировано"
-    });
-    setTimeout(() => {
-      applyingRemoteRef.current = false;
-    }, 1000);
-  }, [setLists, setSettings, setTasks]);
-  const pushSnapshot = useCallback(async () => {
-    const client = clientRef.current;
-    const user = userRef.current;
-    if (!client || !user || !isSyncReady(settingsRef.current)) return;
-    const updatedAt = Date.now();
-    const payload = {
-      tasks: tasksRef.current.map(stripTaskForSync),
-      lists: listsRef.current,
-      updatedAt,
-      deviceId: deviceIdRef.current
-    };
-    const {
-      error
-    } = await client.from(SYNC_TABLE).upsert({
-      user_id: user.id,
-      payload,
-      updated_at: new Date(updatedAt).toISOString()
-    });
-    if (error) throw error;
-    setSettings(prev => ({
-      ...prev,
-      lastSyncedAt: updatedAt
-    }));
-    setSyncStatus({
-      state: "on",
-      text: "Синхронизировано"
-    });
-  }, [setSettings]);
-  useEffect(() => {
-    readyRef.current = false;
-    clientRef.current = null;
-    userRef.current = null;
-    setSyncUser(null);
-    if (!settings?.enabled) {
-      setSyncStatus({
-        state: "off",
-        text: "Синхронизация выключена"
-      });
-      return;
-    }
-    if (!isSyncReady(settings)) {
-      setSyncStatus({
-        state: "warn",
-        text: "Нужна настройка синхронизации"
-      });
-      return;
-    }
-    let cancelled = false;
-    let channel = null;
-    let pollId = null;
-    const pullRemote = async (client, user) => {
-      const {
-        data,
-        error
-      } = await client.from(SYNC_TABLE).select("payload").eq("user_id", user.id).maybeSingle();
-      if (error) throw error;
-      const remote = data?.payload;
-      if (!remote) {
-        await pushSnapshot();
-        return;
-      }
-      const remoteUpdatedAt = Number(remote.updatedAt || 0);
-      const localSyncedAt = Number(settingsRef.current?.lastSyncedAt || 0);
-      const hasLocalData = tasksRef.current.length > 0 || listsRef.current.length > 0;
-      if (hasLocalData && (!localSyncedAt || localSyncedAt > remoteUpdatedAt)) {
-        await pushSnapshot();
-        return;
-      }
-      applyPayload(remote);
-    };
-    (async () => {
-      try {
-        setSyncStatus({
-          state: "syncing",
-          text: "Подключение..."
-        });
-        const client = createSyncClient();
-        clientRef.current = client;
-        const {
-          data: sessionData
-        } = await client.auth.getSession();
-        const user = sessionData.session?.user || null;
-        if (!user) {
-          setSyncStatus({
-            state: "warn",
-            text: "Войдите в аккаунт"
-          });
-          return;
-        }
-        userRef.current = user;
-        setSyncUser(user);
-        await pullRemote(client, user);
-        if (cancelled) return;
-        readyRef.current = true;
-        channel = client.channel("todo-sync-" + user.id).on("postgres_changes", {
-          event: "*",
-          schema: "public",
-          table: SYNC_TABLE,
-          filter: "user_id=eq." + user.id
-        }, event => {
-          applyPayload(event.new?.payload);
-        }).subscribe();
-        pollId = setInterval(() => pullRemote(client, user).catch(() => setSyncStatus({
-          state: "warn",
-          text: "Ошибка синхронизации"
-        })), 15000);
-        setSyncStatus({
-          state: "on",
-          text: "Синхронизация включена"
-        });
-      } catch {
-        if (!cancelled) setSyncStatus({
-          state: "warn",
-          text: "Ошибка синхронизации"
-        });
-      }
-    })();
-    return () => {
-      cancelled = true;
-      readyRef.current = false;
-      if (pollId) clearInterval(pollId);
-      if (channel && clientRef.current) clientRef.current.removeChannel(channel);
-    };
-  }, [applyPayload, pushSnapshot, settings?.enabled, settings?.sessionNonce]);
-  useEffect(() => {
-    if (!readyRef.current || applyingRemoteRef.current || !isSyncReady(settings) || !syncUser) return;
-    setSyncStatus({
-      state: "syncing",
-      text: "Сохранение..."
-    });
-    const id = setTimeout(() => {
-      pushSnapshot().catch(() => setSyncStatus({
-        state: "warn",
-        text: "Ошибка синхронизации"
-      }));
-    }, 800);
-    return () => clearTimeout(id);
-  }, [lists, pushSnapshot, settings?.enabled, syncUser, tasks]);
-  return {
-    ...syncStatus,
-    user: syncUser,
-    client: clientRef.current
-  };
 }
 function useTheme() {
   const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
@@ -1076,199 +850,6 @@ function ColorPickerModal({
     className: "ui-c-20"
   }, "\u041E\u0442\u043C\u0435\u043D\u0430")));
 }
-function SyncModal({
-  open,
-  onClose,
-  settings,
-  setSettings,
-  status
-}) {
-  const [draft, setDraft] = useState(settings);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState(false);
-  const syncConfigured = !!((window.MSTODO_SYNC || {}).supabaseUrl?.trim() && (window.MSTODO_SYNC || {}).supabaseAnonKey?.trim());
-  useEffect(() => {
-    if (open) setDraft(settings);
-  }, [open, settings]);
-  const saveConfig = (extra = {}) => {
-    setSettings({
-      ...settings,
-      ...draft,
-      ...extra,
-      enabled: extra.enabled ?? true,
-      sessionNonce: Date.now()
-    });
-  };
-  const getAuthClient = () => status.client || createSyncClient();
-  const ensureSyncConfigured = () => {
-    if (syncConfigured) return true;
-    toastDispatch?.("Синхронизация не настроена", "Владелец сайта должен заполнить sync-config.js", "⚠️");
-    return false;
-  };
-  const validateEmailPassword = () => {
-    if (!email.trim() || password.length < 6) {
-      toastDispatch?.("Введите email и пароль", "Пароль должен быть не короче 6 символов", "⚠️");
-      return false;
-    }
-    return true;
-  };
-  const signInEmail = async () => {
-    if (!ensureSyncConfigured() || !validateEmailPassword()) return;
-    try {
-      setBusy(true);
-      saveConfig();
-      const client = getAuthClient();
-      const {
-        error
-      } = await client.auth.signInWithPassword({
-        email: email.trim(),
-        password
-      });
-      if (error) throw error;
-      setSettings(p => ({
-        ...p,
-        enabled: true,
-        sessionNonce: Date.now()
-      }));
-      toastDispatch?.("Вход выполнен", "Синхронизация подключается", "☁️");
-    } catch (e) {
-      toastDispatch?.("Не удалось войти", e.message || "Проверьте email и пароль", "⚠️");
-    } finally {
-      setBusy(false);
-    }
-  };
-  const signUpEmail = async () => {
-    if (!ensureSyncConfigured() || !validateEmailPassword()) return;
-    try {
-      setBusy(true);
-      saveConfig();
-      const client = getAuthClient();
-      const {
-        error
-      } = await client.auth.signUp({
-        email: email.trim(),
-        password,
-        options: {
-          emailRedirectTo: location.origin + location.pathname
-        }
-      });
-      if (error) throw error;
-      setSettings(p => ({
-        ...p,
-        enabled: true,
-        sessionNonce: Date.now()
-      }));
-      toastDispatch?.("Аккаунт создан", "Если нужно, подтвердите почту и затем войдите", "☁️");
-    } catch (e) {
-      toastDispatch?.("Не удалось зарегистрироваться", e.message || "Проверьте email и пароль", "⚠️");
-    } finally {
-      setBusy(false);
-    }
-  };
-  const signInGoogle = async () => {
-    if (!ensureSyncConfigured()) return;
-    try {
-      setBusy(true);
-      saveConfig();
-      const client = getAuthClient();
-      const {
-        error
-      } = await client.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: location.origin + location.pathname
-        }
-      });
-      if (error) throw error;
-    } catch (e) {
-      toastDispatch?.("Не удалось открыть вход Google", e.message || "Проверьте настройки Supabase", "⚠️");
-      setBusy(false);
-    }
-  };
-  const signOut = async () => {
-    try {
-      setBusy(true);
-      await status.client?.auth.signOut();
-      setSettings(p => ({
-        ...p,
-        sessionNonce: Date.now()
-      }));
-      toastDispatch?.("Вы вышли из аккаунта", "", "☁️");
-    } finally {
-      setBusy(false);
-    }
-  };
-  return React.createElement(Modal, {
-    open: open,
-    onClose: onClose,
-    title: "\u0421\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u044F"
-  }, React.createElement("label", {
-    className: "ui-c-23"
-  }, React.createElement("input", {
-    type: "checkbox",
-    checked: !!draft.enabled,
-    onChange: e => setDraft(p => ({
-      ...p,
-      enabled: e.target.checked
-    })),
-    className: "ui-c-24"
-  }), "\u0412\u043A\u043B\u044E\u0447\u0438\u0442\u044C \u0441\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u044E"), !syncConfigured && React.createElement("div", {
-    className: "ui-c-25"
-  }, "\u0421\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u044F \u0435\u0449\u0451 \u043D\u0435 \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043D\u0430 \u0432\u043B\u0430\u0434\u0435\u043B\u044C\u0446\u0435\u043C \u0441\u0430\u0439\u0442\u0430."), React.createElement("div", {
-    className: "ui-c-26"
-  }, React.createElement("div", null, React.createElement("label", {
-    className: "ui-c-13"
-  }, "Email"), React.createElement("input", {
-    value: email,
-    onChange: e => setEmail(e.target.value),
-    type: "email",
-    placeholder: "you@example.com",
-    className: "ui-c-27"
-  })), React.createElement("div", null, React.createElement("label", {
-    className: "ui-c-13"
-  }, "\u041F\u0430\u0440\u043E\u043B\u044C"), React.createElement("input", {
-    value: password,
-    onChange: e => setPassword(e.target.value),
-    type: "password",
-    placeholder: "\u043C\u0438\u043D\u0438\u043C\u0443\u043C 6 \u0441\u0438\u043C\u0432\u043E\u043B\u043E\u0432",
-    className: "ui-c-27"
-  }))), React.createElement("button", {
-    onClick: signInGoogle,
-    disabled: busy,
-    className: "ui-c-28"
-  }, React.createElement(L, {
-    name: "Chrome",
-    size: 18
-  }), "\u0412\u043E\u0439\u0442\u0438 \u0447\u0435\u0440\u0435\u0437 Google"), React.createElement("div", {
-    className: "ui-c-29"
-  }, "\u0421\u0442\u0430\u0442\u0443\u0441: ", status.text, status.user?.email ? `, ${status.user.email}` : "", ". \u0412\u043B\u043E\u0436\u0435\u043D\u0438\u044F-\u0444\u0430\u0439\u043B\u044B \u043E\u0441\u0442\u0430\u044E\u0442\u0441\u044F \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u043E \u043D\u0430 \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u0435."), React.createElement("div", {
-    className: "ui-c-30"
-  }, status.user && React.createElement("button", {
-    onClick: signOut,
-    disabled: busy,
-    className: "ui-c-31"
-  }, "\u0412\u044B\u0439\u0442\u0438"), React.createElement("button", {
-    onClick: onClose,
-    className: "ui-c-20"
-  }, "\u0417\u0430\u043A\u0440\u044B\u0442\u044C"), React.createElement("button", {
-    onClick: () => saveConfig({
-      enabled: false
-    }),
-    disabled: busy,
-    className: "ui-c-32"
-  }, "\u0412\u044B\u043A\u043B\u044E\u0447\u0438\u0442\u044C"), React.createElement("button", {
-    onClick: signUpEmail,
-    disabled: busy,
-    className: "ui-c-32"
-  }, "\u0420\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u044F"), React.createElement("button", {
-    onClick: signInEmail,
-    disabled: busy,
-    className: "ui-c-21"
-  }, "\u0412\u043E\u0439\u0442\u0438")));
-}
-const RU_MONTHS = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
-const RU_WD = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 function DatePickerModal({
   open,
   onClose,
@@ -2484,8 +2065,6 @@ function Sidebar({
   notifStatus,
   onEnableNotif,
   onTestNotif,
-  syncStatus,
-  onOpenSync,
   onRefresh,
   dark,
   toggleTheme
@@ -2608,17 +2187,7 @@ function Sidebar({
   }, React.createElement(L, {
     name: "Plus",
     size: 18
-  }), " ", T.actions.createList), React.createElement("button", {
-    onClick: onOpenSync,
-    className: "ui-c-152"
-  }, React.createElement(L, {
-    name: syncStatus.state === "on" ? "CloudCheck" : syncStatus.state === "syncing" ? "RefreshCw" : "Cloud",
-    size: 18
-  }), React.createElement("span", {
-    className: "ui-c-110"
-  }, "\u0421\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u044F"), React.createElement("span", {
-    className: `w-2 h-2 rounded-full ${syncStatus.state === "on" ? "bg-green-500" : syncStatus.state === "syncing" ? "bg-blue-500" : syncStatus.state === "warn" ? "bg-amber-500" : "bg-gray-400"}`
-  }))));
+  }), " ", T.actions.createList)));
 }
 const TaskRow = memo(function TaskRow({
   task,
@@ -2952,10 +2521,6 @@ function App() {
   const [dark, toggleTheme] = useTheme();
   const [tasks, setTasks] = useLocalStorage(STORAGE_TASKS, []);
   const [lists, setLists] = useLocalStorage(STORAGE_LISTS, []);
-  const [syncSettings, setSyncSettings] = useLocalStorage(STORAGE_SYNC, {
-    enabled: false,
-    lastSyncedAt: 0
-  });
   const tasksRef = useRef(tasks);
   const [view, setView] = useState("myday");
   const [search, setSearch] = useState("");
@@ -2969,7 +2534,6 @@ function App() {
   const [movePicker, setMovePicker] = useState(null);
   const [openTask, setOpenTask] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [syncOpen, setSyncOpen] = useState(false);
   const now = useNow();
   const nowTs = now.getTime();
   const [composerDate, setComposerDate] = useState(null);
@@ -2984,7 +2548,6 @@ function App() {
   const [reminderPicker, setReminderPicker] = useState(null);
   const [colorPicker, setColorPicker] = useState(null);
   const [notifStatus, setNotifStatus] = useState(() => "Notification" in window ? Notification.permission : "denied");
-  const syncStatus = useCloudSync(syncSettings, setSyncSettings, tasks, setTasks, lists, setLists);
   useEffect(() => {
     tasksRef.current = tasks;
   }, [tasks]);
@@ -3490,8 +3053,6 @@ function App() {
     notifStatus: notifStatus,
     onEnableNotif: enableNotif,
     onTestNotif: testNotif,
-    syncStatus: syncStatus,
-    onOpenSync: () => setSyncOpen(true),
     onRefresh: () => location.reload(),
     dark: dark,
     toggleTheme: toggleTheme
@@ -3604,12 +3165,6 @@ function App() {
     open: createOpen,
     onClose: () => setCreateOpen(false),
     onCreate: createList
-  }), React.createElement(SyncModal, {
-    open: syncOpen,
-    onClose: () => setSyncOpen(false),
-    settings: syncSettings,
-    setSettings: setSyncSettings,
-    status: syncStatus
   }), React.createElement(ColorPickerModal, {
     open: !!colorPicker,
     onClose: () => setColorPicker(null),

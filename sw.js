@@ -7,7 +7,14 @@ self.addEventListener("install", () => {
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    Promise.all([
+      self.clients.claim(),
+      caches.keys().then((keys) =>
+        Promise.all(keys.filter((key) => /sync|todo|mstodo/i.test(key)).map((key) => caches.delete(key)))
+      ),
+    ])
+  );
 });
 
 self.addEventListener("message", (event) => {
