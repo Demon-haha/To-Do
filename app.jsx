@@ -21,6 +21,7 @@ const STORAGE_THEME = "mstodo_theme";
 const FIRED_KEY = "mstodo_fired_reminders_v2";
 const FILE_DB_NAME = "mstodo_files_v1";
 const FILE_STORE = "files";
+const STORAGE_SUPABASE_URL = "mstodo_supabase_url";
 const SUPABASE_TABLE = "todos";
 const SUPABASE_SYNC_TITLE = "__mstodo_snapshot__";
 const T = {
@@ -379,8 +380,12 @@ function deleteFileBlob(id) {
 
 function getSupabaseConfig() {
   const cfg = window.MSTODO_SUPABASE || {};
+  let savedUrl = "";
+  try {
+    savedUrl = localStorage.getItem(STORAGE_SUPABASE_URL) || "";
+  } catch {}
   return {
-    url: (cfg.url || "").trim(),
+    url: (savedUrl || cfg.url || "").trim(),
     key: (cfg.publishableKey || "").trim(),
   };
 }
@@ -407,7 +412,7 @@ function stripTaskForCloud(task) {
   };
 }
 
-function useSupabaseSync(tasks, setTasks, lists, setLists) {
+function useSupabaseSync(tasks, setTasks, lists, setLists, configVersion = 0) {
   const [status, setStatus] = useState({ state: "off", text: "Синхронизация не настроена" });
   const [user, setUser] = useState(null);
   const clientRef = useRef(null);
@@ -491,7 +496,7 @@ function useSupabaseSync(tasks, setTasks, lists, setLists) {
       alive = false;
       sub?.subscription?.unsubscribe?.();
     };
-  }, []);
+  }, [configVersion]);
 
   useEffect(() => {
     const client = clientRef.current;
@@ -1029,26 +1034,38 @@ function ColorPickerModal({ open, onClose, current, onPick }) {
   );
 }
 
-function AccountModal({ open, onClose, sync }) {
+function AccountModal({ open, onClose, sync, onConfigSaved }) {
+  const [url, setUrl] = useState(() => getSupabaseConfig().url);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const canSubmit = !!(email.trim() && password.length >= 6 && sync.configured);
+  useEffect(() => {
+    if (open) setUrl(getSupabaseConfig().url);
+  }, [open]);
+  const urlReady = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(url.trim());
+  const canSubmit = !!(email.trim() && password.length >= 6 && urlReady && window.supabase?.createClient);
+  const saveUrl = () => {
+    const normalized = url.trim().replace(/\/+$/, "");
+    localStorage.setItem(STORAGE_SUPABASE_URL, normalized);
+    if (window.MSTODO_SUPABASE) window.MSTODO_SUPABASE.url = normalized;
+    onConfigSaved?.();
+  };
   const run = async (fn) => {
     if (!canSubmit && fn !== sync.signOut) return;
     try {
       setBusy(true);
+      if (fn !== sync.signOut) saveUrl();
       await fn(email.trim(), password);
       onClose();
     } catch (e) {
-      toastDispatch?.("Не удалось выполнить вход", e.message || "Проверьте почту и пароль", "⚠️");
+      toastDispatch?.("?? ??????? ????????? ????", e.message || "????????? ????? ? ??????", "??");
     } finally {
       setBusy(false);
     }
   };
   return (
     /*#__PURE__*/ <Modal open={open} onClose={onClose} title={T.actions.sync}>
-      {!sync.configured && <div className="ui-c-25">Укажите URL проекта в sync-config.js. Секретный ключ в приложение добавлять нельзя.</div>}
+      {!urlReady && <div className="ui-c-25">???????? URL ??????? ???? https://xxxxx.supabase.co. ????????? ???? ???? ????????? ??????.</div>}
       {sync.user ? (
         <div className="ui-c-26">
           <div className="ui-c-23"><L name="UserRound" size={16} /> {sync.user.email}</div>
@@ -1059,13 +1076,14 @@ function AccountModal({ open, onClose, sync }) {
         </div>
       ) : (
         <div className="ui-c-26">
+          <input value={url} onChange={(e) => setUrl(e.target.value)} type="url" placeholder="https://xxxxx.supabase.co" className="ui-c-27" />
           <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@example.com" className="ui-c-27" />
-          <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="минимум 6 символов" className="ui-c-27" />
+          <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="??????? 6 ????????" className="ui-c-27" />
           <div className="ui-c-30">
             <button disabled={!canSubmit || busy} onClick={() => run(sync.signUp)} className="ui-c-32">{T.actions.signUp}</button>
             <button disabled={!canSubmit || busy} onClick={() => run(sync.signIn)} className="ui-c-21">{T.actions.signIn}</button>
           </div>
-          <div className="ui-c-29">{sync.text}</div>
+          <div className="ui-c-29">{urlReady ? sync.text : "????? Supabase URL"}</div>
         </div>
       )}
     </Modal>
@@ -2693,6 +2711,7 @@ function App() {
   const [openTask, setOpenTask] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [syncConfigVersion, setSyncConfigVersion] = useState(0);
   const now = useNow();
   const nowTs = now.getTime();
   const [composerDate, setComposerDate] = useState(null);
@@ -2707,7 +2726,7 @@ function App() {
   const [reminderPicker, setReminderPicker] = useState(null);
   const [colorPicker, setColorPicker] = useState(null);
   const [notifStatus, setNotifStatus] = useState(() => ("Notification" in window ? Notification.permission : "denied"));
-  const sync = useSupabaseSync(tasks, setTasks, lists, setLists);
+  const sync = useSupabaseSync(tasks, setTasks, lists, setLists, syncConfigVersion);
   useEffect(() => {
     tasksRef.current = tasks;
   }, [tasks]);
@@ -3477,7 +3496,7 @@ function App() {
       </main>
       <ToastContainer />
       <CreateListModal open={createOpen} onClose={() => setCreateOpen(false)} onCreate={createList} />
-      <AccountModal open={accountOpen} onClose={() => setAccountOpen(false)} sync={sync} />
+      <AccountModal open={accountOpen} onClose={() => setAccountOpen(false)} sync={sync} onConfigSaved={() => setSyncConfigVersion((v) => v + 1)} />
       <ColorPickerModal
         open={!!colorPicker}
         onClose={() => setColorPicker(null)}
