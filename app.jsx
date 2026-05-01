@@ -118,6 +118,21 @@ const COLOR_BANK = [
 const DEFAULT_COLOR = "teal";
 const gradientOf = (cid) => (COLOR_BANK.find((c) => c.id === cid) || COLOR_BANK[0]).className;
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const RU_MONTHS = [
+  "Январь",
+  "Февраль",
+  "Март",
+  "Апрель",
+  "Май",
+  "Июнь",
+  "Июль",
+  "Август",
+  "Сентябрь",
+  "Октябрь",
+  "Ноябрь",
+  "Декабрь",
+];
+const RU_WD = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 const IS_TOUCH = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
 const WEEKDAYS = {
   понедельник: 1,
@@ -3365,5 +3380,14 @@ function App() {
 // Иконки теперь грузятся обычным <script> тегом из template.html и блокируют
 // рендер до завершения. Если ассета не будет (нет интернета) — onerror в
 // template.html выдаст событие lucide-ready, и L просто покажет пустые квадраты.
-document.getElementById("app-loading")?.remove();
-ReactDOM.createRoot(document.getElementById("root")).render(/*#__PURE__*/ <App />);
+try {
+  const rootEl = document.getElementById("root");
+  ReactDOM.createRoot(rootEl).render(/*#__PURE__*/ <App />);
+  setTimeout(() => document.getElementById("app-loading")?.remove(), 0);
+} catch (e) {
+  console.error(e);
+  const loading = document.getElementById("app-loading");
+  if (loading) {
+    loading.innerHTML = '<div class="app-boot-error">?? ??????? ??????? ??????????</div>';
+  }
+}

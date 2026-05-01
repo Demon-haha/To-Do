@@ -187,6 +187,17 @@ html.dark .star-active svg { fill: none !important; stroke-width: 2px !important
   font-size: 14px;
 }
 
+.app-boot-error {
+  max-width: 320px;
+  border: 1px solid rgba(248, 113, 113, .45);
+  border-radius: 8px;
+  background: rgba(127, 29, 29, .18);
+  color: #fecaca;
+  padding: 12px 14px;
+  font-size: 14px;
+  text-align: center;
+}
+
 /* 12. Мобильный FAB — раскрытие снизу */
 @keyframes slide-up {
   from { transform: translateY(100%); opacity: 0; }
