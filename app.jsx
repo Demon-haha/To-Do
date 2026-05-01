@@ -2371,12 +2371,12 @@ function Sidebar({
           <div className="ui-c-138">{T.appName}</div>
         </div>
         <div className="ui-c-139">
-          <ThemeToggle dark={dark} toggle={toggleTheme} />
           {isMobile && (
             /*#__PURE__*/ <button onClick={onRefresh} className="sidebar-refresh-btn" title={T.actions.refresh}>
               <L name="RefreshCw" size={17} />
             </button>
           )}
+          <ThemeToggle dark={dark} toggle={toggleTheme} />
           {isMobile && (
             /*#__PURE__*/ <button onClick={onClose} className="ui-c-140">
               <L name="X" size={22} />
@@ -3113,6 +3113,24 @@ function App() {
     (id, emoji) => setLists((p) => p.map((l) => (l.id === id ? { ...l, emoji } : l))),
     [setLists]
   );
+  const moveTaskToList = useCallback(
+    (taskId, listId) => {
+      setTasks((p) =>
+        p.map((t) => {
+          if (t.id !== taskId) return t;
+          const targetListId = listId || null;
+          return {
+            ...t,
+            listId: targetListId,
+            myDay: targetListId ? false : t.myDay,
+            myDayLocked: false,
+          };
+        })
+      );
+      setOpenTask((id) => (id === taskId && view === "myday" && listId ? null : id));
+    },
+    [setTasks, view]
+  );
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = q
@@ -3568,10 +3586,7 @@ function App() {
         lists={lists}
         currentListId={movePicker ? (tasks.find((t) => t.id === movePicker.id)?.listId ?? null) : null}
         onPick={(id) => {
-          if (movePicker)
-            updateTask(movePicker.id, {
-              listId: id,
-            });
+          if (movePicker) moveTaskToList(movePicker.id, id);
         }}
       />
       <DatePickerModal
