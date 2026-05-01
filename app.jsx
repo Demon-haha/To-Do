@@ -1329,7 +1329,7 @@ function MoveTaskModal({ open, onClose, lists, currentListId, onPick }) {
           }}
           className={`flex items-center gap-3 px-3 py-2.5 rounded text-left text-sm ${currentListId === null ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300" : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"}`}>
           <L name="Sun" size={18} className="ui-c-45" />
-          <span>Без списка</span>
+          <span>{T.views.myday}</span>
         </button>
         {lists.map((l) => (
           /*#__PURE__*/ <button
@@ -2625,8 +2625,11 @@ function TaskComposer({
 }) {
   const [value, setValue] = useState("");
   const [fabOpen, setFabOpen] = useState(false);
+  const [clearHintOpen, setClearHintOpen] = useState(false);
   const taRef = useRef(null);
   const clearTapRef = useRef(0);
+  const clearHintTimerRef = useRef(null);
+  useEffect(() => () => clearTimeout(clearHintTimerRef.current), []);
   useEffect(() => {
     if (!isMobile || !sidebarOpen) return;
     taRef.current?.blur();
@@ -2663,10 +2666,13 @@ function TaskComposer({
     const now = Date.now();
     if (now - clearTapRef.current > 900) {
       clearTapRef.current = now;
-      toastDispatch?.("Нажмите ещё раз", "Текст очистится после второго быстрого нажатия", "×");
+      setClearHintOpen(true);
+      clearTimeout(clearHintTimerRef.current);
+      clearHintTimerRef.current = setTimeout(() => setClearHintOpen(false), 1400);
       return;
     }
     clearTapRef.current = 0;
+    setClearHintOpen(false);
     setValue("");
     if (taRef.current) taRef.current.style.height = "auto";
     taRef.current?.focus();
@@ -2711,6 +2717,11 @@ function TaskComposer({
                 onClick={clearText}
                 aria-label={T.actions.clearText}
                 className="ui-c-165">
+                {clearHintOpen && (
+                  /*#__PURE__*/ <span className="composer-clear-hint">
+                    \u041d\u0430\u0436\u043c\u0438\u0442\u0435 \u0435\u0449\u0451 \u0440\u0430\u0437
+                  </span>
+                )}
                 <L name="X" size={16} />
               </button>
             )}
@@ -2922,7 +2933,7 @@ function App() {
         title,
         completed: false,
         important: view === "important",
-        myDay: !listId && (view === "myday" || view === "important" || !!dueDate),
+        myDay: !listId && view === "myday",
         myDayLocked: !listId && view === "myday",
         listId,
         createdAt: new Date().toISOString(),
@@ -3122,14 +3133,15 @@ function App() {
           return {
             ...t,
             listId: targetListId,
-            myDay: targetListId ? false : t.myDay,
+            myDay: !targetListId,
             myDayLocked: false,
           };
         })
       );
-      setOpenTask((id) => (id === taskId && view === "myday" && listId ? null : id));
+      setSearch("");
+      setView(listId ? "list:" + listId : "myday");
     },
-    [setTasks, view]
+    [setTasks]
   );
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -3137,7 +3149,7 @@ function App() {
       ? tasks.filter((t) => t.title.toLowerCase().includes(q))
       : (() => {
           let l = tasks;
-          if (view === "myday") l = l.filter((t) => t.myDay || isSameDay(t.dueDate));
+          if (view === "myday") l = l.filter((t) => t.myDay);
           else if (view === "important") l = l.filter((t) => t.important);
           else if (view === "planned") l = l.filter((t) => t.dueDate);
           else if (view.startsWith("list:")) {
@@ -3159,7 +3171,7 @@ function App() {
     tasks.forEach((t) => {
       if (t.completed) return;
       if (t.deferUntil && new Date(t.deferUntil) > now) return;
-      if (t.myDay || isSameDay(t.dueDate)) c.myday = (c.myday || 0) + 1;
+      if (t.myDay) c.myday = (c.myday || 0) + 1;
       if (t.important) c.important = (c.important || 0) + 1;
       if (t.dueDate) c.planned = (c.planned || 0) + 1;
       if (t.listId) c["list:" + t.listId] = (c["list:" + t.listId] || 0) + 1;
@@ -3178,10 +3190,10 @@ function App() {
               icon: "Sun",
               label: task.myDay ? "Убрать из «Мой день»" : "Добавить в «Мой день»",
               hint: "Ctrl+T",
-              onClick: () =>
-                updateTask(task.id, {
-                  myDay: !task.myDay,
-                }),
+              onClick: () => {
+                if (task.myDay) updateTask(task.id, { myDay: false, myDayLocked: false });
+                else moveTaskToList(task.id, null);
+              },
             },
           ]),
       {
@@ -3309,7 +3321,7 @@ function App() {
         onClick: () => deleteTask(task.id),
       },
     ],
-    [lists, updateTask, starTask, toggleTask, deleteTask]
+    [lists, updateTask, starTask, toggleTask, deleteTask, moveTaskToList]
   );
   const openContext = useCallback(
     (e, task) =>
@@ -3357,9 +3369,8 @@ function App() {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "t") {
         e.preventDefault();
         if (!t.myDayLocked)
-          updateTask(t.id, {
-            myDay: !t.myDay,
-          });
+          if (t.myDay) updateTask(t.id, { myDay: false, myDayLocked: false });
+          else moveTaskToList(t.id, null);
         setCtxMenu(null);
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
         e.preventDefault();
@@ -3373,7 +3384,7 @@ function App() {
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [ctxMenu, updateTask, toggleTask, deleteTask]);
+  }, [ctxMenu, updateTask, toggleTask, deleteTask, moveTaskToList]);
   const viewMeta = useMemo(() => {
     if (search.trim())
       return {
@@ -3663,7 +3674,7 @@ function App() {
           onStar={starTask}
           onDelete={deleteTask}
           onAddToMyDay={(id) => {
-            updateTask(id, { myDay: true });
+            updateTask(id, { myDay: true, myDayLocked: false, listId: null });
             setView("myday");
           }}
           onOpenDate={(task) => {
