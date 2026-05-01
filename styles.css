@@ -29,15 +29,38 @@ body {
 }
 
 /* 2. Темы */
-body { background: #faf9f8; color: #201f1e; }
-.sidebar-bg { background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%); }
+:root {
+  --app-bg: #faf9f8;
+  --app-fg: #201f1e;
+  --sidebar-bg-start: #faf9f8;
+  --sidebar-bg-end: #f3f2f1;
+  --text-muted: #a19f9d;
+  --scroll-thumb: #d2d0ce;
+  --surface-strong: #fff;
+  --shadow-toggle: 0 1px 4px rgba(0,0,0,.3);
+  --theme-track-active: #4338ca;
+  --theme-track-idle: #d1d5db;
+  --theme-icon-moon: #4338ca;
+  --theme-icon-sun: #f59e0b;
+  --task-detail-bg: #1c1c1e;
+  --context-menu-bg: #2b2b2b;
+}
 
-.dark body { background: #1a1a2e; color: #e2e8f0; }
-.dark .sidebar-bg { background: linear-gradient(180deg, #16213e 0%, #0f3460 100%); }
+html.dark {
+  --app-bg: #1a1a2e;
+  --app-fg: #e2e8f0;
+  --sidebar-bg-start: #16213e;
+  --sidebar-bg-end: #0f3460;
+  --text-muted: #64748b;
+  --scroll-thumb: #334155;
+  --context-menu-bg: #111827;
+}
+
+body { background: var(--app-bg); color: var(--app-fg); }
+.sidebar-bg { background: linear-gradient(180deg, var(--sidebar-bg-start) 0%, var(--sidebar-bg-end) 100%); }
 
 /* 3. Типографика */
-.strike { text-decoration: line-through; color: #a19f9d; }
-.dark .strike { color: #64748b; }
+.strike { text-decoration: line-through; color: var(--text-muted); }
 .dark input[type="datetime-local"] { color-scheme: dark; }
 
 /* 4. Анимации */
@@ -51,8 +74,7 @@ body { background: #faf9f8; color: #201f1e; }
 
 /* 5. Скроллбары */
 .scroll-thin::-webkit-scrollbar { width: 7px; }
-.scroll-thin::-webkit-scrollbar-thumb { background: #d2d0ce; border-radius: 4px; }
-.dark .scroll-thin::-webkit-scrollbar-thumb { background: #334155; }
+.scroll-thin::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 4px; }
 .scroll-thin::-webkit-scrollbar-track { background: transparent; }
 
 /* 6. Переключатель темы */
@@ -64,13 +86,15 @@ body { background: #faf9f8; color: #201f1e; }
 .theme-thumb {
   position: absolute; top: 3px; left: 3px;
   width: 18px; height: 18px; border-radius: 50%;
-  background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.3);
+  background: var(--surface-strong); box-shadow: var(--shadow-toggle);
   transition: transform .3s cubic-bezier(.34,1.56,.64,1);
   display: flex; align-items: center; justify-content: center;
 }
-.theme-track.dark-mode  { background: #4338ca; }
-.theme-track.light-mode { background: #d1d5db; }
+.theme-track.dark-mode  { background: var(--theme-track-active); }
+.theme-track.light-mode { background: var(--theme-track-idle); }
 .theme-track.dark-mode .theme-thumb { transform: translateX(20px); }
+
+.bg-task-detail { background: var(--task-detail-bg); }
 
 /* 7. Тосты */
 .toast-enter { animation: toast-in .3s ease-out; }
@@ -78,11 +102,26 @@ body { background: #faf9f8; color: #201f1e; }
 @keyframes toast-in  { from { opacity:0; transform:translateX(100%); } to { opacity:1; transform:translateX(0); } }
 @keyframes toast-out { from { opacity:1; transform:translateX(0); }   to { opacity:0; transform:translateX(100%); } }
 
+@keyframes slideUp {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
 /* 8. Safe-area для iPhone с чёлкой */
 .safe-top    { padding-top:    env(safe-area-inset-top); }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 .safe-left   { padding-left:   env(safe-area-inset-left); }
 .safe-right  { padding-right:  env(safe-area-inset-right); }
+
+.app-header {
+  padding-top: calc(env(safe-area-inset-top) + 1.25rem);
+  padding-bottom: 1.25rem;
+}
+
+.ui-c-49 { padding-top: calc(env(safe-area-inset-top) + 0.75rem); }
+.ui-c-60,
+.ui-c-97 { padding-top: calc(env(safe-area-inset-top) + 0.5rem); }
+.ui-c-135 { padding-top: calc(env(safe-area-inset-top) + 0.75rem); }
 
 /* 9. Мобильная адаптация */
 @media (hover: none) {
@@ -120,6 +159,33 @@ html.dark .star-active svg { fill: none !important; stroke-width: 2px !important
 
 /* 11. Спиннер загрузки */
 @keyframes _spin { to { transform: rotate(360deg); } }
+
+.app-loading {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--app-bg);
+  z-index: 9999;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.loading-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--theme-track-idle);
+  border-top-color: var(--theme-track-active);
+  border-radius: 50%;
+  animation: _spin 0.8s linear infinite;
+}
+
+.app-loading-msg {
+  margin-top: 16px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
 
 /* 12. Мобильный FAB — раскрытие снизу */
 @keyframes slide-up {

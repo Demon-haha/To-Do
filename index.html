@@ -36,9 +36,9 @@
 </head>
 <body>
   <!-- Спиннер виден сразу, до загрузки React -->
-  <div id="app-loading" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#faf9f8;z-index:9999;font-family:system-ui">
-    <div style="width:36px;height:36px;border:3px solid #e5e7eb;border-top-color:#2563eb;border-radius:50%;animation:_spin 0.8s linear infinite"></div>
-    <p style="margin-top:16px;color:#6b7280;font-size:14px" id="app-loading-msg">Загрузка…</p>
+  <div id="app-loading" class="app-loading">
+    <div class="loading-spinner"></div>
+    <p class="app-loading-msg" id="app-loading-msg">Загрузка…</p>
   </div>
   <div id="root"></div>
 
@@ -70,51 +70,92 @@ const FIRED_KEY = "mstodo_fired_reminders_v2";
 const FILE_DB_NAME = "mstodo_files_v1";
 const FILE_STORE = "files";
 const SYNC_TABLE = "todo_user_sync";
+const T = {
+  appName: "To Do",
+  views: {
+    myday: "Мой день",
+    important: "Важное",
+    planned: "Запланировано",
+    listFallback: "Список",
+    searchPrefix: "\u041f\u043e\u0438\u0441\u043a",
+    foundPrefix: "\u041d\u0430\u0439\u0434\u0435\u043d\u043e",
+    importantSub: "\u0417\u0430\u0434\u0430\u0447\u0438, \u043e\u0442\u043c\u0435\u0447\u0435\u043d\u043d\u044b\u0435 \u0437\u0432\u0451\u0437\u0434\u043e\u0447\u043a\u043e\u0439",
+    plannedSub: "\u0417\u0430\u0434\u0430\u0447\u0438 \u0441\u043e \u0441\u0440\u043e\u043a\u043e\u043c"
+  },
+  actions: {
+    lightTheme: "\u0421\u0432\u0435\u0442\u043b\u0430\u044f \u0442\u0435\u043c\u0430",
+    darkTheme: "\u0422\u0451\u043c\u043d\u0430\u044f \u0442\u0435\u043c\u0430",
+    toggleTheme: "\u041f\u0435\u0440\u0435\u043a\u043b\u044e\u0447\u0438\u0442\u044c \u0442\u0435\u043c\u0443",
+    refresh: "Обновить",
+    searchTasks: "Поиск задач",
+    createList: "Создать список",
+    sync: "Синхронизация",
+    listColor: "\u0426\u0432\u0435\u0442 \u0441\u043f\u0438\u0441\u043a\u0430",
+    clearText: "Очистить текст",
+    addTask: "Добавить задачу"
+  },
+  empty: {
+    noTasks: "Нет активных задач",
+    noResults: "Ничего не найдено"
+  },
+  colors: {
+    teal: "Бирюзовый",
+    brown: "Шоколадный",
+    purple: "Фиолетовый",
+    pink: "Розовый",
+    red: "Красный",
+    gold: "Золотой",
+    lime: "Лаймовый",
+    green: "Зелёный",
+    cyan: "Голубой",
+    slate: "Графит"
+  }
+};
 const DEFAULT_EMOJI = "📋";
 const EMOJI_BANK = ["📋", "✅", "⭐", "💼", "🏠", "🛒", "🎯", "📚", "💡", "🏋️", "🍎", "✈️", "🎵", "💻", "🎨", "🧘", "🌱", "🔥", "💰", "📦", "🎮", "🐶", "☕", "📝"];
 const COLOR_BANK = [{
   id: "teal",
-  label: "Бирюзовый",
-  gradient: "from-emerald-600 to-teal-700"
+  label: T.colors.teal,
+  className: "list-color-teal"
 }, {
   id: "brown",
-  label: "Шоколадный",
-  gradient: "from-stone-600 to-amber-900"
+  label: T.colors.brown,
+  className: "list-color-brown"
 }, {
   id: "purple",
-  label: "Фиолетовый",
-  gradient: "from-purple-600 to-fuchsia-700"
+  label: T.colors.purple,
+  className: "list-color-purple"
 }, {
   id: "pink",
-  label: "Розовый",
-  gradient: "from-rose-500 to-pink-600"
+  label: T.colors.pink,
+  className: "list-color-pink"
 }, {
   id: "red",
-  label: "Красный",
-  gradient: "from-red-600 to-rose-700"
+  label: T.colors.red,
+  className: "list-color-red"
 }, {
   id: "gold",
-  label: "Золотой",
-  gradient: "from-amber-400 to-yellow-400"
+  label: T.colors.gold,
+  className: "list-color-gold"
 }, {
   id: "lime",
-  label: "Лаймовый",
-  gradient: "from-lime-500 to-lime-700"
+  label: T.colors.lime,
+  className: "list-color-lime"
 }, {
   id: "green",
-  label: "Зелёный",
-  gradient: "from-green-600 to-emerald-700"
+  label: T.colors.green,
+  className: "list-color-green"
 }, {
   id: "cyan",
-  label: "Голубой",
-  gradient: "from-cyan-500 to-sky-600"
+  label: T.colors.cyan,
+  className: "list-color-cyan"
 }, {
   id: "slate",
-  label: "Графит",
-  gradient: "from-slate-600 to-slate-800"
+  label: T.colors.slate,
+  className: "list-color-slate"
 }];
 const DEFAULT_COLOR = "teal";
-const gradientOf = cid => (COLOR_BANK.find(c => c.id === cid) || COLOR_BANK[0]).gradient;
+const gradientOf = cid => (COLOR_BANK.find(c => c.id === cid) || COLOR_BANK[0]).className;
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const IS_TOUCH = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
 const WEEKDAYS = {
@@ -647,20 +688,20 @@ function ToastContainer() {
     }, 6000);
   }, []);
   return React.createElement("div", {
-    className: "fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm w-[calc(100%-2rem)] sm:w-full pointer-events-none"
+    className: "ui-c-1"
   }, toasts.map(t => React.createElement("div", {
     key: t.id,
     className: `pointer-events-auto rounded-xl shadow-2xl border px-4 py-3 flex items-start gap-3
               bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700
               ${t.leaving ? "toast-leave" : "toast-enter"}`
   }, React.createElement("span", {
-    className: "text-xl leading-none mt-0.5"
+    className: "ui-c-2"
   }, t.icon), React.createElement("div", {
-    className: "flex-1 min-w-0"
+    className: "ui-c-3"
   }, React.createElement("div", {
-    className: "text-sm font-semibold text-gray-900 dark:text-gray-100 truncate"
+    className: "ui-c-4"
   }, t.msg), t.sub && React.createElement("div", {
-    className: "text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate"
+    className: "ui-c-5"
   }, t.sub)))));
 }
 function useNow(ms = 30000) {
@@ -864,23 +905,19 @@ function ThemeToggle({
 }) {
   return React.createElement("button", {
     onClick: toggle,
-    title: dark ? "Светлая тема" : "Тёмная тема",
+    title: dark ? T.actions.lightTheme : T.actions.darkTheme,
     className: `theme-track flex-shrink-0 ${dark ? "dark-mode" : "light-mode"}`,
-    "aria-label": "\u041F\u0435\u0440\u0435\u043A\u043B\u044E\u0447\u0438\u0442\u044C \u0442\u0435\u043C\u0443"
+    "aria-label": T.actions.toggleTheme
   }, React.createElement("div", {
-    className: "theme-thumb"
+    className: "ui-c-6"
   }, dark ? React.createElement(L, {
     name: "Moon",
     size: 10,
-    style: {
-      color: "#4338ca"
-    }
+    className: "theme-icon-moon"
   }) : React.createElement(L, {
     name: "Sun",
     size: 10,
-    style: {
-      color: "#f59e0b"
-    }
+    className: "theme-icon-sun"
   })));
 }
 function Modal({
@@ -900,23 +937,23 @@ function Modal({
   }, [open, onClose]);
   if (!open) return null;
   return React.createElement("div", {
-    className: "fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50",
+    className: "ui-c-7",
     onClick: () => closeOnOverlay && onClose()
   }, React.createElement("div", {
-    className: "rounded-xl shadow-2xl w-full max-w-sm pop-in bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 max-h-[90vh] overflow-y-auto",
+    className: "ui-c-8",
     onClick: e => e.stopPropagation()
   }, React.createElement("div", {
-    className: "px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between"
+    className: "ui-c-9"
   }, React.createElement("div", {
-    className: "font-semibold text-gray-900 dark:text-gray-100"
+    className: "ui-c-10"
   }, title), React.createElement("button", {
     onClick: onClose,
-    className: "p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
+    className: "ui-c-11"
   }, React.createElement(L, {
     name: "X",
     size: 16
   }))), React.createElement("div", {
-    className: "p-5"
+    className: "ui-c-12"
   }, children)));
 }
 function CreateListModal({
@@ -954,7 +991,7 @@ function CreateListModal({
     onClose: onClose,
     title: "\u041D\u043E\u0432\u044B\u0439 \u0441\u043F\u0438\u0441\u043E\u043A"
   }, React.createElement("label", {
-    className: "block text-xs text-gray-600 dark:text-gray-400 mb-1"
+    className: "ui-c-13"
   }, "\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435"), React.createElement("input", {
     ref: inputRef,
     value: name,
@@ -965,9 +1002,9 @@ function CreateListModal({
     placeholder: "\u041D\u0430\u043F\u0440\u0438\u043C\u0435\u0440: \u041F\u043E\u043A\u0443\u043F\u043A\u0438",
     className: iCls + " mb-4"
   }), React.createElement("label", {
-    className: "block text-xs text-gray-600 dark:text-gray-400 mb-2"
+    className: "ui-c-14"
   }, "\u042D\u043C\u043E\u0434\u0437\u0438"), React.createElement("div", {
-    className: "grid grid-cols-8 gap-1 mb-3"
+    className: "ui-c-15"
   }, EMOJI_BANK.map(e => React.createElement("button", {
     key: e,
     onClick: () => {
@@ -982,30 +1019,30 @@ function CreateListModal({
     placeholder: "\u0418\u043B\u0438 \u0432\u0441\u0442\u0430\u0432\u044C\u0442\u0435 \u0441\u0432\u043E\u0439 \u044D\u043C\u043E\u0434\u0437\u0438",
     className: iCls + " mb-4"
   }), React.createElement("label", {
-    className: "block text-xs text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-1.5"
+    className: "ui-c-16"
   }, React.createElement(L, {
     name: "Palette",
     size: 13
   }), " \u0426\u0432\u0435\u0442"), React.createElement("div", {
-    className: "grid grid-cols-5 gap-2 mb-4"
+    className: "ui-c-17"
   }, COLOR_BANK.map(c => React.createElement("button", {
     key: c.id,
     onClick: () => setColor(c.id),
     title: c.label,
-    className: `aspect-square rounded-lg bg-gradient-to-br ${c.gradient} flex items-center justify-center transition-all ring-2 ${color === c.id ? "ring-blue-400 ring-offset-2 ring-offset-white dark:ring-offset-gray-800" : "ring-transparent hover:ring-white/40"}`
+    className: `color-swatch ${c.className} ${color === c.id ? "color-swatch-selected" : "color-swatch-idle"}`
   }, color === c.id && React.createElement(L, {
     name: "Check",
     size: 18,
-    className: "text-white"
+    className: "ui-c-18"
   })))), React.createElement("div", {
-    className: "flex justify-end gap-2"
+    className: "ui-c-19"
   }, React.createElement("button", {
     onClick: onClose,
-    className: "text-sm px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+    className: "ui-c-20"
   }, "\u041E\u0442\u043C\u0435\u043D\u0430"), React.createElement("button", {
     onClick: submit,
     disabled: !name.trim(),
-    className: "text-sm px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+    className: "ui-c-21"
   }, "\u0421\u043E\u0437\u0434\u0430\u0442\u044C")));
 }
 function ColorPickerModal({
@@ -1019,7 +1056,7 @@ function ColorPickerModal({
     onClose: onClose,
     title: "\u0426\u0432\u0435\u0442 \u0441\u043F\u0438\u0441\u043A\u0430"
   }, React.createElement("div", {
-    className: "grid grid-cols-5 gap-2 mb-4"
+    className: "ui-c-17"
   }, COLOR_BANK.map(c => React.createElement("button", {
     key: c.id,
     onClick: () => {
@@ -1027,16 +1064,16 @@ function ColorPickerModal({
       onClose();
     },
     title: c.label,
-    className: `aspect-square rounded-lg bg-gradient-to-br ${c.gradient} flex items-center justify-center transition-all ring-2 ${current === c.id ? "ring-blue-400 ring-offset-2 ring-offset-white dark:ring-offset-gray-800" : "ring-transparent hover:ring-white/40"}`
+    className: `color-swatch ${c.className} ${current === c.id ? "color-swatch-selected" : "color-swatch-idle"}`
   }, current === c.id && React.createElement(L, {
     name: "Check",
     size: 18,
-    className: "text-white"
+    className: "ui-c-18"
   })))), React.createElement("div", {
-    className: "flex justify-end"
+    className: "ui-c-22"
   }, React.createElement("button", {
     onClick: onClose,
-    className: "text-sm px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+    className: "ui-c-20"
   }, "\u041E\u0442\u043C\u0435\u043D\u0430")));
 }
 function SyncModal({
@@ -1167,7 +1204,7 @@ function SyncModal({
     onClose: onClose,
     title: "\u0421\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u044F"
   }, React.createElement("label", {
-    className: "flex items-center gap-2 text-sm text-gray-800 dark:text-gray-200 mb-4"
+    className: "ui-c-23"
   }, React.createElement("input", {
     type: "checkbox",
     checked: !!draft.enabled,
@@ -1175,59 +1212,59 @@ function SyncModal({
       ...p,
       enabled: e.target.checked
     })),
-    className: "w-4 h-4"
+    className: "ui-c-24"
   }), "\u0412\u043A\u043B\u044E\u0447\u0438\u0442\u044C \u0441\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u044E"), !syncConfigured && React.createElement("div", {
-    className: "mb-4 rounded-lg border border-amber-300/60 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-sm text-amber-800 dark:text-amber-200"
+    className: "ui-c-25"
   }, "\u0421\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u044F \u0435\u0449\u0451 \u043D\u0435 \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043D\u0430 \u0432\u043B\u0430\u0434\u0435\u043B\u044C\u0446\u0435\u043C \u0441\u0430\u0439\u0442\u0430."), React.createElement("div", {
-    className: "grid grid-cols-1 gap-3 mb-4"
+    className: "ui-c-26"
   }, React.createElement("div", null, React.createElement("label", {
-    className: "block text-xs text-gray-600 dark:text-gray-400 mb-1"
+    className: "ui-c-13"
   }, "Email"), React.createElement("input", {
     value: email,
     onChange: e => setEmail(e.target.value),
     type: "email",
     placeholder: "you@example.com",
-    className: "w-full text-sm rounded px-3 py-2 focus:outline-none border bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-400 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+    className: "ui-c-27"
   })), React.createElement("div", null, React.createElement("label", {
-    className: "block text-xs text-gray-600 dark:text-gray-400 mb-1"
+    className: "ui-c-13"
   }, "\u041F\u0430\u0440\u043E\u043B\u044C"), React.createElement("input", {
     value: password,
     onChange: e => setPassword(e.target.value),
     type: "password",
     placeholder: "\u043C\u0438\u043D\u0438\u043C\u0443\u043C 6 \u0441\u0438\u043C\u0432\u043E\u043B\u043E\u0432",
-    className: "w-full text-sm rounded px-3 py-2 focus:outline-none border bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-400 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+    className: "ui-c-27"
   }))), React.createElement("button", {
     onClick: signInGoogle,
     disabled: busy,
-    className: "w-full mb-4 flex items-center justify-center gap-2 rounded bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 px-4 py-2.5 text-sm font-medium text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
+    className: "ui-c-28"
   }, React.createElement(L, {
     name: "Chrome",
     size: 18
   }), "\u0412\u043E\u0439\u0442\u0438 \u0447\u0435\u0440\u0435\u0437 Google"), React.createElement("div", {
-    className: "text-xs text-gray-500 dark:text-gray-400 mb-4"
+    className: "ui-c-29"
   }, "\u0421\u0442\u0430\u0442\u0443\u0441: ", status.text, status.user?.email ? `, ${status.user.email}` : "", ". \u0412\u043B\u043E\u0436\u0435\u043D\u0438\u044F-\u0444\u0430\u0439\u043B\u044B \u043E\u0441\u0442\u0430\u044E\u0442\u0441\u044F \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u043E \u043D\u0430 \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u0435."), React.createElement("div", {
-    className: "flex flex-wrap justify-end gap-2"
+    className: "ui-c-30"
   }, status.user && React.createElement("button", {
     onClick: signOut,
     disabled: busy,
-    className: "text-sm px-4 py-2 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 disabled:opacity-50"
+    className: "ui-c-31"
   }, "\u0412\u044B\u0439\u0442\u0438"), React.createElement("button", {
     onClick: onClose,
-    className: "text-sm px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+    className: "ui-c-20"
   }, "\u0417\u0430\u043A\u0440\u044B\u0442\u044C"), React.createElement("button", {
     onClick: () => saveConfig({
       enabled: false
     }),
     disabled: busy,
-    className: "text-sm px-4 py-2 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
+    className: "ui-c-32"
   }, "\u0412\u044B\u043A\u043B\u044E\u0447\u0438\u0442\u044C"), React.createElement("button", {
     onClick: signUpEmail,
     disabled: busy,
-    className: "text-sm px-4 py-2 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
+    className: "ui-c-32"
   }, "\u0420\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u044F"), React.createElement("button", {
     onClick: signInEmail,
     disabled: busy,
-    className: "text-sm px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+    className: "ui-c-21"
   }, "\u0412\u043E\u0439\u0442\u0438")));
 }
 const RU_MONTHS = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
@@ -1310,26 +1347,26 @@ function DatePickerModal({
     title: showTime ? "Напоминание" : "Дата выполнения",
     closeOnOverlay: false
   }, React.createElement("div", {
-    className: "flex items-center justify-between mb-3"
+    className: "ui-c-33"
   }, React.createElement("button", {
     onClick: prevMonth,
     disabled: !canGoPrev,
     className: `p-1.5 rounded ${canGoPrev ? "hover:bg-gray-100 dark:hover:bg-gray-700" : "opacity-30 cursor-not-allowed"}`
   }, "\u2039"), React.createElement("div", {
-    className: "text-sm font-medium text-gray-800 dark:text-gray-200"
+    className: "ui-c-34"
   }, RU_MONTHS[mo], " ", y), React.createElement("button", {
     onClick: nextMonth,
-    className: "p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+    className: "ui-c-35"
   }, "\u203A")), React.createElement("div", {
     onTouchStart: onMonthTouchStart,
     onTouchEnd: onMonthTouchEnd
   }, React.createElement("div", {
-    className: "grid grid-cols-7 gap-1 mb-1"
+    className: "ui-c-36"
   }, RU_WD.map(w => React.createElement("div", {
     key: w,
-    className: "text-[11px] text-center text-gray-500 dark:text-gray-400 py-1"
+    className: "ui-c-37"
   }, w))), React.createElement("div", {
-    className: "grid grid-cols-7 gap-1 mb-4"
+    className: "ui-c-38"
   }, cells.map((d, i) => {
     if (!d) return React.createElement("div", {
       key: i
@@ -1344,32 +1381,32 @@ function DatePickerModal({
       className: `text-sm py-1.5 rounded ${past ? "text-gray-300 dark:text-gray-600 cursor-not-allowed" : isSel ? "bg-blue-600 text-white" : isToday ? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300" : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"}`
     }, d.getDate());
   }))), showTime && React.createElement("div", {
-    className: "flex items-center gap-2 mb-3"
+    className: "ui-c-39"
   }, React.createElement("label", {
-    className: "text-xs text-gray-600 dark:text-gray-400"
+    className: "ui-c-40"
   }, "\u0412\u0440\u0435\u043C\u044F"), React.createElement("input", {
     type: "number",
     min: "0",
     max: "23",
     value: h,
     onChange: e => setH(Math.max(0, Math.min(23, parseInt(e.target.value, 10) || 0))),
-    className: "w-14 text-sm rounded px-2 py-1 border bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100"
+    className: "ui-c-41"
   }), React.createElement("span", {
-    className: "text-gray-500"
+    className: "ui-c-42"
   }, ":"), React.createElement("input", {
     type: "number",
     min: "0",
     max: "59",
     value: m,
     onChange: e => setM(Math.max(0, Math.min(59, parseInt(e.target.value, 10) || 0))),
-    className: "w-14 text-sm rounded px-2 py-1 border bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100"
+    className: "ui-c-41"
   })), showTime && React.createElement("div", {
-    className: "text-[11px] mb-3 text-gray-500 dark:text-gray-400"
+    className: "ui-c-43"
   }, "\u0412 \u0443\u043A\u0430\u0437\u0430\u043D\u043D\u043E\u0435 \u0432\u0440\u0435\u043C\u044F \u043F\u0440\u0438\u0434\u0451\u0442 \u043D\u0430\u043F\u043E\u043C\u0438\u043D\u0430\u043D\u0438\u0435."), React.createElement("div", {
-    className: "flex justify-end gap-2"
+    className: "ui-c-19"
   }, React.createElement("button", {
     onClick: onClose,
-    className: "text-sm px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+    className: "ui-c-20"
   }, "\u041E\u0442\u043C\u0435\u043D\u0430"), React.createElement("button", {
     onClick: apply,
     disabled: showTime ? !resultDate || isPast : !selected,
@@ -1388,7 +1425,7 @@ function MoveTaskModal({
     onClose: onClose,
     title: "\u041F\u0435\u0440\u0435\u043C\u0435\u0441\u0442\u0438\u0442\u044C \u0437\u0430\u0434\u0430\u0447\u0443"
   }, React.createElement("div", {
-    className: "flex flex-col gap-1 max-h-80 overflow-y-auto scroll-thin"
+    className: "ui-c-44"
   }, React.createElement("button", {
     onClick: () => {
       onPick(null);
@@ -1398,7 +1435,7 @@ function MoveTaskModal({
   }, React.createElement(L, {
     name: "Sun",
     size: 18,
-    className: "text-yellow-500 shrink-0"
+    className: "ui-c-45"
   }), React.createElement("span", null, "\u0411\u0435\u0437 \u0441\u043F\u0438\u0441\u043A\u0430")), lists.map(l => React.createElement("button", {
     key: l.id,
     onClick: () => {
@@ -1407,12 +1444,12 @@ function MoveTaskModal({
     },
     className: `flex items-center gap-3 px-3 py-2.5 rounded text-left text-sm ${currentListId === l.id ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300" : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"}`
   }, React.createElement("span", {
-    className: "text-lg"
+    className: "ui-c-46"
   }, l.emoji), React.createElement("span", null, l.name)))), React.createElement("div", {
-    className: "flex justify-end mt-4"
+    className: "ui-c-47"
   }, React.createElement("button", {
     onClick: onClose,
-    className: "text-sm px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+    className: "ui-c-20"
   }, "\u041E\u0442\u043C\u0435\u043D\u0430")));
 }
 function FileViewer({
@@ -1450,39 +1487,39 @@ function FileViewer({
   if (!file) return null;
   const isImg = file.type?.startsWith("image/");
   return React.createElement("div", {
-    className: "fixed inset-0 z-[200] bg-black/95 flex flex-col",
+    className: "ui-c-48",
     onClick: onClose
   }, React.createElement("div", {
-    className: "flex items-center justify-between px-4 py-3 safe-top"
+    className: "ui-c-49"
   }, React.createElement("span", {
-    className: "text-white/70 text-sm truncate max-w-[75%]"
+    className: "ui-c-50"
   }, file.name), React.createElement("button", {
-    className: "p-2 text-white",
+    className: "ui-c-51",
     onClick: onClose
   }, React.createElement(L, {
     name: "X",
     size: 24
   }))), React.createElement("div", {
-    className: "flex-1 flex items-center justify-center p-4",
+    className: "ui-c-52",
     onClick: e => e.stopPropagation()
   }, loading ? React.createElement("div", {
-    className: "text-white/60 text-sm"
+    className: "ui-c-53"
   }, "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430...") : isImg && fileUrl ? React.createElement("img", {
     src: fileUrl,
-    className: "max-w-full max-h-full object-contain rounded-xl",
+    className: "ui-c-54",
     alt: file.name
   }) : React.createElement("div", {
-    className: "text-center"
+    className: "ui-c-55"
   }, React.createElement(L, {
     name: "File",
     size: 64,
-    className: "text-gray-400 mx-auto mb-4"
+    className: "ui-c-56"
   }), React.createElement("div", {
-    className: "text-white/60 text-sm mb-5"
+    className: "ui-c-57"
   }, file.name), React.createElement("a", {
     href: fileUrl || file.data,
     download: file.name,
-    className: "text-blue-400 border border-blue-400/40 px-4 py-2 rounded-lg text-sm"
+    className: "ui-c-58"
   }, "\u0421\u043A\u0430\u0447\u0430\u0442\u044C"))));
 }
 function TaskDetailPanel({
@@ -1589,47 +1626,43 @@ function TaskDetailPanel({
     }
     e.target.value = "";
   };
-  const panelCls = isMobile ? "fixed inset-0 z-50 bg-[#1c1c1e] dark:bg-gray-950 flex flex-col" : "fixed right-0 top-0 bottom-0 z-50 w-[380px] bg-[#1c1c1e] dark:bg-gray-950 flex flex-col shadow-2xl border-l border-gray-700/50";
+  const panelCls = isMobile ? "task-detail-panel task-detail-panel-mobile" : "task-detail-panel task-detail-panel-desktop";
   return React.createElement(React.Fragment, null, React.createElement(FileViewer, {
     file: viewFile,
     onClose: () => setViewFile(null)
   }), !isMobile && React.createElement("div", {
-    className: "fixed inset-0 z-40 bg-black/30",
+    className: "ui-c-59",
     onClick: onClose
   }), React.createElement("div", {
     className: panelCls,
     onTouchStart: onPanelTouchStart,
     onTouchMove: onPanelTouchMove,
-    onTouchEnd: onPanelTouchEnd,
-    style: {
-      animation: "slideUp .2s ease-out",
-      overscrollBehaviorY: isMobile ? "contain" : undefined
-    }
-  }, React.createElement("style", null, `@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:none;opacity:1}}`), React.createElement("div", {
-    className: "flex items-center gap-2 px-3 py-2 border-b border-gray-700/40 safe-top"
+    onTouchEnd: onPanelTouchEnd
+  }, React.createElement("div", {
+    className: "ui-c-60"
   }, React.createElement("button", {
     onClick: onClose,
-    className: "p-2 text-gray-400 hover:text-gray-200"
+    className: "ui-c-61"
   }, React.createElement(L, {
     name: "ArrowLeft",
     size: 22
   })), React.createElement("span", {
-    className: "text-sm text-gray-500"
+    className: "ui-c-62"
   }, list ? `${list.emoji} ${list.name}` : "Мой день")), React.createElement("div", {
-    className: "flex-1 overflow-y-auto scroll-thin"
+    className: "ui-c-63"
   }, React.createElement("div", {
-    className: "flex items-start gap-4 px-5 py-5 border-b border-gray-700/30"
+    className: "ui-c-64"
   }, React.createElement("button", {
     onClick: () => onToggle(task.id),
-    className: "task-check-btn mt-0.5 shrink-0 relative w-6 h-6 flex items-center justify-center"
+    className: "ui-c-65"
   }, React.createElement("span", {
     className: `absolute inset-0 rounded-full border-2 flex items-center justify-center transition-all ${task.completed ? "bg-blue-600 border-blue-600" : "border-gray-500 hover:border-blue-400"}`
   }, task.completed && React.createElement(L, {
     name: "Check",
     size: 14,
-    className: "text-white"
+    className: "ui-c-18"
   }))), React.createElement("div", {
-    className: "flex-1"
+    className: "ui-c-66"
   }, titleEdit ? React.createElement("input", {
     ref: titleRef,
     value: titleVal,
@@ -1638,7 +1671,7 @@ function TaskDetailPanel({
     onKeyDown: e => {
       if (e.key === "Enter") commitTitle();
     },
-    className: "w-full bg-transparent outline-none text-base font-medium text-gray-100 border-b border-blue-500 pb-0.5"
+    className: "ui-c-67"
   }) : React.createElement("div", {
     onClick: () => {
       setTitleVal(task.title);
@@ -1656,10 +1689,10 @@ function TaskDetailPanel({
     size: 22,
     fill: task.important ? "currentColor" : "none"
   }))), React.createElement("div", {
-    className: "border-b border-gray-700/30"
+    className: "ui-c-68"
   }, steps.map(s => React.createElement("div", {
     key: s.id,
-    className: "flex items-start gap-3 pl-10 pr-5 py-3"
+    className: "ui-c-69"
   }, React.createElement("button", {
     onClick: () => onUpdate(task.id, {
       steps: steps.map(x => x.id === s.id ? {
@@ -1667,13 +1700,13 @@ function TaskDetailPanel({
         completed: !x.completed
       } : x)
     }),
-    className: "task-check-btn shrink-0 relative w-5 h-5 flex items-center justify-center mt-0.5"
+    className: "ui-c-70"
   }, React.createElement("span", {
     className: `absolute inset-0 rounded-full border-2 flex items-center justify-center ${s.completed ? "bg-blue-600 border-blue-600" : "border-gray-500"}`
   }, s.completed && React.createElement(L, {
     name: "Check",
     size: 11,
-    className: "text-white"
+    className: "ui-c-18"
   }))), editingStep?.id === s.id ? React.createElement("textarea", {
     autoFocus: true,
     value: editingStep.value,
@@ -1710,7 +1743,7 @@ function TaskDetailPanel({
       }
       if (e.key === "Escape") setEditingStep(null);
     },
-    className: "flex-1 min-w-0 bg-transparent text-sm text-gray-300 outline-none border-b border-blue-500 pb-0.5 resize-none overflow-hidden leading-5"
+    className: "ui-c-71"
   }) : React.createElement("span", {
     onClick: () => setEditingStep({
       id: s.id,
@@ -1721,14 +1754,14 @@ function TaskDetailPanel({
     onClick: () => onUpdate(task.id, {
       steps: steps.filter(x => x.id !== s.id)
     }),
-    className: "p-1 text-gray-600 hover:text-red-400 shrink-0 mt-0.5"
+    className: "ui-c-72"
   }, React.createElement(L, {
     name: "X",
     size: 14
   })))), React.createElement("div", {
-    className: "flex items-center gap-3 px-5 py-3"
+    className: "ui-c-73"
   }, React.createElement("span", {
-    className: "w-5 h-5 flex items-center justify-center text-gray-600"
+    className: "ui-c-74"
   }, React.createElement(L, {
     name: "Plus",
     size: 16
@@ -1739,10 +1772,10 @@ function TaskDetailPanel({
       if (e.key === "Enter") addStep();
     },
     placeholder: "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0448\u0430\u0433",
-    className: "flex-1 bg-transparent text-sm text-gray-300 outline-none placeholder:text-gray-600"
+    className: "ui-c-75"
   }), newStep && React.createElement("button", {
     onClick: addStep,
-    className: "text-xs text-blue-400 px-2"
+    className: "ui-c-76"
   }, "\u041E\u041A"))), React.createElement("div", {
     onClick: () => {
       if (myDayLocked) return;
@@ -1764,13 +1797,13 @@ function TaskDetailPanel({
         myDay: false
       });
     },
-    className: "p-1 text-gray-600 hover:text-gray-400 rounded"
+    className: "ui-c-77"
   }, React.createElement(L, {
     name: "X",
     size: 14
   }))), React.createElement("button", {
     onClick: () => onOpenDate(task),
-    className: "w-full flex items-center gap-4 px-5 py-4 border-b border-gray-700/30 hover:bg-gray-800/30 transition-colors"
+    className: "ui-c-78"
   }, React.createElement(L, {
     name: "Calendar",
     size: 20,
@@ -1784,13 +1817,13 @@ function TaskDetailPanel({
         dueDate: null
       });
     },
-    className: "p-1 text-gray-600 hover:text-gray-400"
+    className: "ui-c-79"
   }, React.createElement(L, {
     name: "X",
     size: 14
   }))), React.createElement("button", {
     onClick: () => onOpenReminder(task),
-    className: "w-full flex items-center gap-4 px-5 py-4 border-b border-gray-700/30 hover:bg-gray-800/30 transition-colors"
+    className: "ui-c-78"
   }, React.createElement(L, {
     name: "Bell",
     size: 20,
@@ -1805,19 +1838,19 @@ function TaskDetailPanel({
         reminderFired: false
       });
     },
-    className: "p-1 text-gray-600 hover:text-gray-400"
+    className: "ui-c-79"
   }, React.createElement(L, {
     name: "X",
     size: 14
   }))), React.createElement("button", {
     onClick: () => onOpenRecurrence(task),
-    className: "w-full flex items-center gap-4 px-5 py-4 border-b border-gray-700/30 hover:bg-gray-800/30 transition-colors"
+    className: "ui-c-78"
   }, React.createElement(L, {
     name: "Repeat",
     size: 20,
-    className: "text-gray-500"
+    className: "ui-c-42"
   }), React.createElement("span", {
-    className: "text-sm flex-1 text-left text-gray-400"
+    className: "ui-c-80"
   }, task.recurrence ? recurrenceLabel(task.recurrence) : "Повтор"), task.recurrence && React.createElement("button", {
     onClick: e => {
       e.stopPropagation();
@@ -1825,31 +1858,31 @@ function TaskDetailPanel({
         recurrence: null
       });
     },
-    className: "p-1 text-gray-600 hover:text-gray-400"
+    className: "ui-c-79"
   }, React.createElement(L, {
     name: "X",
     size: 14
   }))), files.length > 0 && React.createElement("div", {
-    className: "px-5 py-4 border-b border-gray-700/30 flex flex-wrap gap-3"
+    className: "ui-c-81"
   }, files.map(f => React.createElement("div", {
     key: f.id,
-    className: "relative"
+    className: "ui-c-82"
   }, f.type?.startsWith("image/") && f.data ? React.createElement("button", {
     onClick: () => setViewFile(f),
-    className: "w-16 h-16 rounded-xl overflow-hidden border border-gray-600 hover:border-blue-400"
+    className: "ui-c-83"
   }, React.createElement("img", {
     src: f.data,
-    className: "w-full h-full object-cover",
+    className: "ui-c-84",
     alt: f.name
   })) : React.createElement("button", {
     onClick: () => setViewFile(f),
-    className: "w-16 h-16 rounded-xl border border-gray-600 hover:border-blue-400 flex flex-col items-center justify-center gap-1 bg-gray-800"
+    className: "ui-c-85"
   }, React.createElement(L, {
     name: "File",
     size: 20,
-    className: "text-gray-400"
+    className: "ui-c-86"
   }), React.createElement("span", {
-    className: "text-[9px] text-gray-500 uppercase"
+    className: "ui-c-87"
   }, f.name.split(".").pop())), React.createElement("button", {
     onClick: () => {
       deleteFileBlob(f.id);
@@ -1857,28 +1890,28 @@ function TaskDetailPanel({
         files: files.filter(x => x.id !== f.id)
       });
     },
-    className: "absolute -top-1.5 -right-1.5 w-5 h-5 bg-gray-700 hover:bg-red-600 rounded-full flex items-center justify-center border border-gray-600"
+    className: "ui-c-88"
   }, React.createElement(L, {
     name: "X",
     size: 10,
-    className: "text-white"
+    className: "ui-c-18"
   }))))), React.createElement("button", {
     onClick: () => fileInput.current?.click(),
-    className: "w-full flex items-center gap-4 px-5 py-4 border-b border-gray-700/30 hover:bg-gray-800/30 transition-colors"
+    className: "ui-c-78"
   }, React.createElement(L, {
     name: "Paperclip",
     size: 20,
-    className: "text-gray-500"
+    className: "ui-c-42"
   }), React.createElement("span", {
-    className: "text-sm text-gray-400"
+    className: "ui-c-89"
   }, "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0444\u0430\u0439\u043B")), React.createElement("input", {
     ref: fileInput,
     type: "file",
     accept: "image/*,.pdf,.doc,.docx",
-    className: "hidden",
+    className: "ui-c-90",
     onChange: handleFile
   }), React.createElement("div", {
-    className: "px-5 py-4"
+    className: "ui-c-91"
   }, React.createElement("textarea", {
     key: task.id,
     defaultValue: task.notes || "",
@@ -1886,12 +1919,12 @@ function TaskDetailPanel({
       notes: e.target.value
     }),
     placeholder: "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0437\u0430\u043C\u0435\u0442\u043A\u0443",
-    className: "w-full bg-transparent text-sm text-gray-400 placeholder:text-gray-600 outline-none resize-none min-h-[80px]",
+    className: "ui-c-92",
     rows: 3
   }))), React.createElement("div", {
-    className: "flex items-center justify-between px-4 py-3 border-t border-gray-700/40 safe-bottom"
+    className: "ui-c-93"
   }, React.createElement("span", {
-    className: "text-xs text-gray-600"
+    className: "ui-c-94"
   }, new Date(task.createdAt).toLocaleDateString("ru-RU", {
     day: "numeric",
     month: "long"
@@ -1900,7 +1933,7 @@ function TaskDetailPanel({
       onDelete(task.id);
       onClose();
     },
-    className: "p-2 text-red-500/60 hover:text-red-400"
+    className: "ui-c-95"
   }, React.createElement(L, {
     name: "Trash2",
     size: 20
@@ -1925,15 +1958,15 @@ function SearchOverlay({
     return tasks.filter(t => t.title.toLowerCase().includes(q) || (t.notes || "").toLowerCase().includes(q));
   }, [tasks, search]);
   return React.createElement("div", {
-    className: "fixed inset-0 z-50 bg-[#1c1c1e] dark:bg-gray-950 flex flex-col"
+    className: "ui-c-96"
   }, React.createElement("div", {
-    className: "flex items-center gap-3 px-3 py-2 safe-top border-b border-gray-700/40"
+    className: "ui-c-97"
   }, React.createElement("button", {
     onClick: () => {
       setSearch("");
       onClose();
     },
-    className: "p-2 text-gray-400 hover:text-gray-200"
+    className: "ui-c-61"
   }, React.createElement(L, {
     name: "ArrowLeft",
     size: 22
@@ -1942,58 +1975,58 @@ function SearchOverlay({
     value: search,
     onChange: e => setSearch(e.target.value),
     placeholder: "\u041F\u043E\u0438\u0441\u043A",
-    className: "flex-1 bg-transparent text-base text-gray-100 outline-none placeholder:text-gray-500"
+    className: "ui-c-98"
   }), search && React.createElement("button", {
     onClick: () => setSearch(""),
-    className: "p-2 text-gray-500"
+    className: "ui-c-99"
   }, React.createElement(L, {
     name: "X",
     size: 18
   }))), !search.trim() ? React.createElement("div", {
-    className: "flex-1 flex flex-col items-center justify-center gap-5 px-8"
+    className: "ui-c-100"
   }, React.createElement(L, {
     name: "Search",
     size: 72,
-    className: "text-gray-700"
+    className: "ui-c-101"
   }), React.createElement("div", {
-    className: "text-center text-gray-500 text-sm leading-relaxed"
+    className: "ui-c-102"
   }, "\u0427\u0442\u043E \u0432\u044B \u0445\u043E\u0442\u0438\u0442\u0435 \u043D\u0430\u0439\u0442\u0438?", React.createElement("br", null), "\u0412\u044B \u043C\u043E\u0436\u0435\u0442\u0435 \u0438\u0441\u043A\u0430\u0442\u044C \u0437\u0430\u0434\u0430\u0447\u0438 \u0438 \u0437\u0430\u043C\u0435\u0442\u043A\u0438")) : results.length === 0 ? React.createElement("div", {
-    className: "flex-1 flex flex-col items-center justify-center gap-3"
+    className: "ui-c-103"
   }, React.createElement(L, {
     name: "SearchX",
     size: 48,
-    className: "text-gray-700"
+    className: "ui-c-101"
   }), React.createElement("div", {
-    className: "text-gray-500 text-sm"
+    className: "ui-c-104"
   }, "\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E")) : React.createElement("div", {
-    className: "flex-1 overflow-y-auto scroll-thin"
+    className: "ui-c-63"
   }, results.map(t => {
     const overdue = t.dueDate && !t.completed && new Date(t.dueDate) < new Date(nowTs);
     const list = lists.find(l => l.id === t.listId);
     return React.createElement("button", {
       key: t.id,
       onClick: () => onOpenTask(t.id),
-      className: "w-full flex items-center gap-4 px-5 py-4 border-b border-gray-700/20 text-left hover:bg-gray-800/30 transition-colors"
+      className: "ui-c-105"
     }, React.createElement("span", {
       className: `w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center ${t.completed ? "bg-blue-600 border-blue-600" : "border-gray-500"}`
     }, t.completed && React.createElement(L, {
       name: "Check",
       size: 11,
-      className: "text-white"
+      className: "ui-c-18"
     })), React.createElement("div", {
-      className: "flex-1 min-w-0"
+      className: "ui-c-3"
     }, React.createElement("div", {
       className: `text-sm ${t.completed ? "line-through text-gray-500" : "text-gray-200"}`
     }, t.title), (t.dueDate || list) && React.createElement("div", {
-      className: "flex items-center gap-3 mt-0.5"
+      className: "ui-c-106"
     }, t.dueDate && React.createElement("span", {
       className: `text-[11px] ${overdue ? "text-red-400" : "text-gray-600"}`
     }, formatDate(t.dueDate)), list && React.createElement("span", {
-      className: "text-[11px] text-gray-600"
+      className: "ui-c-107"
     }, list.emoji, " ", list.name))), t.important && React.createElement(L, {
       name: "Star",
       size: 16,
-      className: "text-yellow-400 shrink-0",
+      className: "ui-c-108",
       fill: "currentColor"
     }));
   })));
@@ -2053,57 +2086,57 @@ function ReminderModal({
   }, React.createElement(L, {
     name: "Clock",
     size: 18,
-    className: "text-gray-500 dark:text-gray-400"
+    className: "ui-c-109"
   }), React.createElement("span", {
-    className: "flex-1 text-left"
+    className: "ui-c-110"
   }, "\u041F\u043E\u0437\u0434\u043D\u0435\u0435 \u0441\u0435\u0433\u043E\u0434\u043D\u044F"), React.createElement("span", {
-    className: "text-xs text-gray-500"
+    className: "ui-c-111"
   }, timeText(p.laterToday))), React.createElement("button", {
     onClick: () => pick(p.tomorrow),
     className: row
   }, React.createElement(L, {
     name: "ArrowRightCircle",
     size: 18,
-    className: "text-gray-500 dark:text-gray-400"
+    className: "ui-c-109"
   }), React.createElement("span", {
-    className: "flex-1 text-left"
+    className: "ui-c-110"
   }, "\u0417\u0430\u0432\u0442\u0440\u0430"), React.createElement("span", {
-    className: "text-xs text-gray-500"
+    className: "ui-c-111"
   }, timeText(p.tomorrow))), React.createElement("button", {
     onClick: () => pick(p.nextWeek),
     className: row
   }, React.createElement(L, {
     name: "ChevronsRight",
     size: 18,
-    className: "text-gray-500 dark:text-gray-400"
+    className: "ui-c-109"
   }), React.createElement("span", {
-    className: "flex-1 text-left"
+    className: "ui-c-110"
   }, "\u0421\u043B\u0435\u0434\u0443\u044E\u0449\u0430\u044F \u043D\u0435\u0434\u0435\u043B\u044F"), React.createElement("span", {
-    className: "text-xs text-gray-500"
+    className: "ui-c-111"
   }, timeText(p.nextWeek))), React.createElement("div", {
-    className: "h-px bg-gray-200 dark:bg-gray-700 my-2"
+    className: "ui-c-112"
   }), React.createElement("label", {
-    className: "block text-xs text-gray-600 dark:text-gray-400 mb-1"
+    className: "ui-c-13"
   }, "\u0412\u044B\u0431\u0440\u0430\u0442\u044C \u0434\u0430\u0442\u0443 \u0438 \u0432\u0440\u0435\u043C\u044F"), React.createElement("input", {
     type: "datetime-local",
     value: custom,
     onChange: e => setCustom(e.target.value),
-    className: "w-full text-sm rounded px-3 py-2 focus:outline-none border bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-400 mb-3"
+    className: "ui-c-113"
   }), React.createElement("div", {
-    className: "flex justify-between gap-2"
+    className: "ui-c-114"
   }, React.createElement("button", {
     onClick: () => pick(null),
     disabled: !current,
-    className: "text-sm px-4 py-2 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 disabled:opacity-40"
+    className: "ui-c-115"
   }, "\u0423\u0431\u0440\u0430\u0442\u044C"), React.createElement("div", {
-    className: "flex gap-2"
+    className: "ui-c-116"
   }, React.createElement("button", {
     onClick: onClose,
-    className: "text-sm px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+    className: "ui-c-20"
   }, "\u041E\u0442\u043C\u0435\u043D\u0430"), React.createElement("button", {
     onClick: applyCustom,
     disabled: !custom,
-    className: "text-sm px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+    className: "ui-c-21"
   }, "\u041E\u041A"))));
 }
 function RecurrenceModal({
@@ -2156,15 +2189,15 @@ function RecurrenceModal({
   }, React.createElement(L, {
     name: it.icon,
     size: 18,
-    className: "text-gray-500 dark:text-gray-400"
+    className: "ui-c-109"
   }), React.createElement("span", {
-    className: "flex-1 text-left"
+    className: "ui-c-110"
   }, it.label), current?.type === it.type && React.createElement(L, {
     name: "Check",
     size: 16,
-    className: "text-blue-500"
+    className: "ui-c-117"
   }))), React.createElement("div", {
-    className: "h-px bg-gray-200 dark:bg-gray-700 my-2"
+    className: "ui-c-112"
   }), React.createElement("button", {
     onClick: () => {
       onClose();
@@ -2174,22 +2207,22 @@ function RecurrenceModal({
   }, React.createElement(L, {
     name: "Settings2",
     size: 18,
-    className: "text-gray-500 dark:text-gray-400"
+    className: "ui-c-109"
   }), React.createElement("span", {
-    className: "flex-1 text-left"
+    className: "ui-c-110"
   }, "\u041D\u0430\u0441\u0442\u0440\u043E\u0438\u0442\u044C"), current?.type === "custom" && React.createElement(L, {
     name: "Check",
     size: 16,
-    className: "text-blue-500"
+    className: "ui-c-117"
   })), React.createElement("div", {
-    className: "flex justify-between gap-2 mt-3"
+    className: "ui-c-118"
   }, React.createElement("button", {
     onClick: () => pick(null),
-    className: "text-sm px-4 py-2 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 disabled:opacity-40",
+    className: "ui-c-115",
     disabled: !current
   }, "\u0423\u0431\u0440\u0430\u0442\u044C"), React.createElement("button", {
     onClick: onClose,
-    className: "text-sm px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+    className: "ui-c-20"
   }, "\u041E\u0442\u043C\u0435\u043D\u0430")));
 }
 function CustomRecurrenceModal({
@@ -2232,31 +2265,31 @@ function CustomRecurrenceModal({
     onClose: onClose,
     title: "\u041D\u0430\u0441\u0442\u0440\u043E\u0438\u0442\u044C \u043F\u043E\u0432\u0442\u043E\u0440"
   }, React.createElement("div", {
-    className: "text-sm text-gray-700 dark:text-gray-300 mb-3"
+    className: "ui-c-119"
   }, "\u041F\u043E\u0432\u0442\u043E\u0440\u044F\u0442\u044C \u043A\u0430\u0436\u0434\u044B\u0435:"), React.createElement("div", {
-    className: "flex gap-2 mb-4"
+    className: "ui-c-120"
   }, React.createElement("input", {
     type: "number",
     min: "1",
     max: "999",
     value: interval,
     onChange: e => setInterval(e.target.value),
-    className: "w-20 text-sm rounded px-3 py-2 focus:outline-none border bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-400"
+    className: "ui-c-121"
   }), React.createElement("select", {
     value: unit,
     onChange: e => setUnit(e.target.value),
-    className: "flex-1 text-sm rounded px-3 py-2 focus:outline-none border bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-400"
+    className: "ui-c-122"
   }, units.map(u => React.createElement("option", {
     key: u.v,
     value: u.v
   }, pluralRu(n, u.labels))))), React.createElement("div", {
-    className: "flex justify-end gap-2"
+    className: "ui-c-19"
   }, React.createElement("button", {
     onClick: onClose,
-    className: "text-sm px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+    className: "ui-c-20"
   }, "\u041E\u0442\u043C\u0435\u043D\u0430"), React.createElement("button", {
     onClick: apply,
-    className: "text-sm px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+    className: "ui-c-123"
   }, "\u041E\u041A")));
 }
 function ContextMenu({
@@ -2295,10 +2328,10 @@ function ContextMenu({
       top: posY,
       minWidth: W
     },
-    className: "fixed z-50 rounded-lg shadow-2xl py-1 pop-in no-select bg-[#2b2b2b] dark:bg-gray-900 dark:border dark:border-gray-700 text-gray-100"
+    className: "ui-c-124"
   }, actions.map((a, i) => a.divider ? React.createElement("div", {
     key: i,
-    className: "h-px bg-white/10 dark:bg-gray-700 my-1"
+    className: "ui-c-125"
   }) : React.createElement("button", {
     key: i,
     onClick: () => {
@@ -2307,14 +2340,14 @@ function ContextMenu({
     },
     className: `w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-white/10 dark:hover:bg-white/5 transition-colors ${a.danger ? "text-red-400" : ""}`
   }, React.createElement("span", {
-    className: "w-5 flex justify-center opacity-80"
+    className: "ui-c-126"
   }, React.createElement(L, {
     name: a.icon,
     size: 16
   })), React.createElement("span", {
-    className: "flex-1 text-left"
+    className: "ui-c-110"
   }, a.label), a.hint && !IS_TOUCH && React.createElement("span", {
-    className: "text-xs opacity-40"
+    className: "ui-c-127"
   }, a.hint))));
 }
 function ListRow({
@@ -2350,7 +2383,7 @@ function ListRow({
   }, emojiOpen && React.createElement("div", {
     className: isMobile ? "fixed inset-x-0 bottom-0 z-[80] rounded-t-2xl bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-2xl p-4 safe-bottom" : "absolute left-0 bottom-full mb-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-2 w-56"
   }, isMobile && React.createElement("div", {
-    className: "mx-auto mb-3 h-1 w-10 rounded-full bg-gray-300 dark:bg-gray-600"
+    className: "ui-c-128"
   }), React.createElement("div", {
     className: `grid ${isMobile ? "grid-cols-6 gap-2" : "grid-cols-8 gap-1"} mb-3`
   }, EMOJI_BANK.map(e => React.createElement("button", {
@@ -2363,7 +2396,7 @@ function ListRow({
     className: `${isMobile ? "h-11 text-2xl" : "text-lg p-0.5"} hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors`
   }, e))), React.createElement("input", {
     placeholder: "\u0421\u0432\u043E\u0439 \u044D\u043C\u043E\u0434\u0437\u0438\u2026",
-    className: "w-full text-sm bg-gray-50 dark:bg-gray-700 rounded px-3 py-2 outline-none border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100",
+    className: "ui-c-129",
     onKeyDown: ev => {
       if (ev.key === "Enter") {
         const v = ev.target.value.trim();
@@ -2380,15 +2413,15 @@ function ListRow({
       ev.stopPropagation();
       setEmojiOpen(false);
     },
-    className: "mt-3 w-full rounded bg-gray-100 dark:bg-gray-700 px-3 py-2 text-sm text-gray-700 dark:text-gray-200"
+    className: "ui-c-130"
   }, "\u0413\u043E\u0442\u043E\u0432\u043E")), React.createElement("div", {
-    className: "flex items-center gap-3 px-3 py-2 text-sm"
+    className: "ui-c-131"
   }, React.createElement("button", {
     onClick: e => {
       e.stopPropagation();
       setEmojiOpen(o => !o);
     },
-    className: "text-base leading-none w-5 text-center shrink-0 hover:scale-110 transition-transform",
+    className: "ui-c-132",
     title: "\u0418\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u044D\u043C\u043E\u0434\u0437\u0438"
   }, list.emoji || DEFAULT_EMOJI), editing ? React.createElement("input", {
     ref: inputRef,
@@ -2418,7 +2451,7 @@ function ListRow({
       e.stopPropagation();
       setEditing(true);
     },
-    className: "p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0",
+    className: "ui-c-133",
     title: "\u041F\u0435\u0440\u0435\u0438\u043C\u0435\u043D\u043E\u0432\u0430\u0442\u044C"
   }, React.createElement(L, {
     name: "Pencil",
@@ -2428,7 +2461,7 @@ function ListRow({
       e.stopPropagation();
       if (confirm(`Удалить список «${list.name}»?`)) onDelete(list.id);
     },
-    className: "p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+    className: "ui-c-134"
   }, React.createElement(L, {
     name: "Trash2",
     size: 13
@@ -2453,20 +2486,21 @@ function Sidebar({
   onTestNotif,
   syncStatus,
   onOpenSync,
+  onRefresh,
   dark,
   toggleTheme
 }) {
   const builtins = [{
     id: "myday",
-    label: "Мой день",
+    label: T.views.myday,
     icon: "Sun"
   }, {
     id: "important",
-    label: "Важное",
+    label: T.views.important,
     icon: "Star"
   }, {
     id: "planned",
-    label: "Запланировано",
+    label: T.views.planned,
     icon: "CalendarDays"
   }];
   return React.createElement("aside", {
@@ -2474,49 +2508,56 @@ function Sidebar({
         ${isMobile ? "fixed inset-y-0 left-0 z-[70] shadow-2xl transition-transform duration-300 ease-out" : ""}
         ${isMobile && !open ? "-translate-x-full" : "translate-x-0"}`
   }, React.createElement("div", {
-    className: "px-3 pt-3 pb-2 flex items-center justify-between gap-2 safe-top"
+    className: "ui-c-135"
   }, React.createElement("div", {
-    className: "flex items-center gap-2 min-w-0"
+    className: "ui-c-136"
   }, React.createElement("div", {
-    className: "w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shrink-0"
+    className: "ui-c-137"
   }, React.createElement(L, {
     name: "CheckCircle2",
     size: 18
   })), React.createElement("div", {
-    className: "text-sm font-semibold text-gray-900 dark:text-gray-100"
-  }, "To Do")), React.createElement("div", {
-    className: "flex items-center gap-2"
+    className: "ui-c-138"
+  }, T.appName)), React.createElement("div", {
+    className: "ui-c-139"
   }, React.createElement(ThemeToggle, {
     dark: dark,
     toggle: toggleTheme
   }), isMobile && React.createElement("button", {
+    onClick: onRefresh,
+    className: "sidebar-refresh-btn",
+    title: T.actions.refresh
+  }, React.createElement(L, {
+    name: "RefreshCw",
+    size: 17
+  })), isMobile && React.createElement("button", {
     onClick: onClose,
-    className: "p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+    className: "ui-c-140"
   }, React.createElement(L, {
     name: "X",
     size: 22
   })))), !isMobile && React.createElement("div", {
-    className: "px-3 pb-2"
+    className: "ui-c-141"
   }, React.createElement("div", {
-    className: "relative"
+    className: "ui-c-82"
   }, React.createElement("span", {
-    className: "absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+    className: "ui-c-142"
   }, React.createElement(L, {
     name: "Search",
     size: 15
   })), React.createElement("input", {
     value: search,
     onChange: e => setSearch(e.target.value),
-    placeholder: "\u041F\u043E\u0438\u0441\u043A \u0437\u0430\u0434\u0430\u0447",
-    className: "w-full text-sm rounded-md pl-8 pr-8 py-2 focus:outline-none border bg-white/70 dark:bg-gray-800/60 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:bg-white dark:focus:bg-gray-800 focus:border-blue-400"
+    placeholder: T.actions.searchTasks,
+    className: "ui-c-143"
   }), search && React.createElement("button", {
     onClick: () => setSearch(""),
-    className: "absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400"
+    className: "ui-c-144"
   }, React.createElement(L, {
     name: "X",
     size: 13
   })))), React.createElement("nav", {
-    className: "flex-1 overflow-y-auto scroll-thin px-2"
+    className: "ui-c-145"
   }, builtins.map(it => {
     const active = view === it.id && !search;
     return React.createElement("button", {
@@ -2529,17 +2570,17 @@ function Sidebar({
       className: `w-full flex items-center justify-between gap-3 px-3 py-2 rounded-md text-sm mb-0.5 transition-colors border
                   ${active ? "bg-white dark:bg-gray-800/80 shadow-sm border-gray-200 dark:border-gray-700 text-blue-700 dark:text-blue-400 font-medium" : "hover:bg-white/70 dark:hover:bg-gray-800/50 border-transparent text-gray-700 dark:text-gray-300"}`
     }, React.createElement("span", {
-      className: "flex items-center gap-3"
+      className: "ui-c-146"
     }, React.createElement("span", {
       className: active ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"
     }, React.createElement(L, {
       name: it.icon,
       size: 18
     })), it.label), counts[it.id] > 0 && React.createElement("span", {
-      className: "text-xs text-gray-500 dark:text-gray-500"
+      className: "ui-c-147"
     }, counts[it.id]));
   }), lists.length > 0 && React.createElement("div", {
-    className: "h-px bg-gray-200 dark:bg-gray-700 my-2 mx-2"
+    className: "ui-c-148"
   }), lists.map(l => React.createElement(ListRow, {
     key: l.id,
     list: l,
@@ -2555,26 +2596,26 @@ function Sidebar({
     isMobile: isMobile,
     onClose: onClose
   }))), React.createElement("div", {
-    className: "border-t border-gray-200 dark:border-gray-700 p-2 space-y-0.5 safe-bottom"
+    className: "ui-c-149"
   }, notifStatus === "denied" && React.createElement("div", {
-    className: "px-3 py-1.5 text-[11px] text-red-500 flex items-center gap-1"
+    className: "ui-c-150"
   }, React.createElement(L, {
     name: "BellOff",
     size: 12
   }), " \u0423\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u044F \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u043D\u044B \u0432 \u0431\u0440\u0430\u0443\u0437\u0435\u0440\u0435"), React.createElement("button", {
     onClick: onOpenCreate,
-    className: "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/50"
+    className: "ui-c-151"
   }, React.createElement(L, {
     name: "Plus",
     size: 18
-  }), " \u0421\u043E\u0437\u0434\u0430\u0442\u044C \u0441\u043F\u0438\u0441\u043E\u043A"), React.createElement("button", {
+  }), " ", T.actions.createList), React.createElement("button", {
     onClick: onOpenSync,
-    className: "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/50"
+    className: "ui-c-152"
   }, React.createElement(L, {
     name: syncStatus.state === "on" ? "CloudCheck" : syncStatus.state === "syncing" ? "RefreshCw" : "Cloud",
     size: 18
   }), React.createElement("span", {
-    className: "flex-1 text-left"
+    className: "ui-c-110"
   }, "\u0421\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u044F"), React.createElement("span", {
     className: `w-2 h-2 rounded-full ${syncStatus.state === "on" ? "bg-green-500" : syncStatus.state === "syncing" ? "bg-blue-500" : syncStatus.state === "warn" ? "bg-amber-500" : "bg-gray-400"}`
   }))));
@@ -2628,12 +2669,12 @@ const TaskRow = memo(function TaskRow({
       onContext(e, task);
     }
   }, IS_TOUCH ? longPress : {}, {
-    className: "fade-in group rounded-md mb-1.5 transition-shadow border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow-sm dark:hover:border-gray-600 task-row"
+    className: "ui-c-153 group"
   }), React.createElement("div", {
-    className: "flex items-center gap-3 px-4 py-3"
+    className: "ui-c-154"
   }, React.createElement("button", {
     onClick: () => onToggle(task.id),
-    className: "task-check-btn relative w-6 h-6 shrink-0 flex items-center justify-center",
+    className: "ui-c-155",
     title: "\u041E\u0442\u043C\u0435\u0442\u0438\u0442\u044C \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u043D\u043E\u0439"
   }, React.createElement("span", {
     className: `absolute inset-0 rounded-full border-2 flex items-center justify-center transition-all duration-200
@@ -2642,11 +2683,11 @@ const TaskRow = memo(function TaskRow({
   }, task.completed && React.createElement(L, {
     name: "Check",
     size: 14,
-    className: "text-white"
+    className: "ui-c-18"
   })), swapEmoji && React.createElement("span", {
-    className: "absolute inset-0 flex items-center justify-center text-base leading-none opacity-100 group-hover:opacity-0 transition-opacity duration-200 pointer-events-none"
+    className: "ui-c-156"
   }, listEmoji)), React.createElement("div", {
-    className: "flex-1 min-w-0",
+    className: "ui-c-3",
     onClick: handleBodyClick
   }, !IS_TOUCH && editing ? React.createElement("input", {
     ref: inputRef,
@@ -2660,7 +2701,7 @@ const TaskRow = memo(function TaskRow({
         setEditing(false);
       }
     },
-    className: "w-full text-sm outline-none border-b border-blue-400 bg-transparent pb-0.5 text-gray-900 dark:text-gray-100"
+    className: "ui-c-157"
   }) : React.createElement("div", {
     className: `text-sm cursor-pointer break-words text-gray-900 dark:text-gray-100 ${task.completed ? "strike" : ""}`
   }, task.title), (() => {
@@ -2694,7 +2735,7 @@ const TaskRow = memo(function TaskRow({
     if (metas.length === 0) return null;
     const compact = isMobile && metas.length >= 4;
     return React.createElement("div", {
-      className: "flex items-center gap-2 mt-0.5 flex-wrap"
+      className: "ui-c-158"
     }, metas.map((m, i) => React.createElement("span", {
       key: i,
       className: `flex items-center gap-1 text-[11px] ${m.cls}`
@@ -2778,8 +2819,8 @@ function TaskComposer({
   if (isMobile && !fabOpen) {
     return React.createElement("button", {
       onClick: openFab,
-      "aria-label": "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0437\u0430\u0434\u0430\u0447\u0443",
-      className: "fixed bottom-6 left-4 z-50 w-14 h-14 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-full flex items-center justify-center shadow-xl transition-transform duration-200 safe-bottom"
+      "aria-label": T.actions.addTask,
+      className: "ui-c-159"
     }, React.createElement(L, {
       name: "Plus",
       size: 26
@@ -2787,18 +2828,18 @@ function TaskComposer({
   }
   const overlay = isMobile && fabOpen;
   return React.createElement(React.Fragment, null, overlay && React.createElement("div", {
-    className: "fixed inset-0 z-40 bg-black/20",
+    className: "ui-c-160",
     onClick: () => {
       if (!value.trim() && !hasAny) setFabOpen(false);
     }
   }), React.createElement("div", {
     className: overlay ? "fixed bottom-0 left-0 right-0 z-50 p-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 shadow-2xl safe-bottom safe-left safe-right composer-slide-up" : ""
   }, React.createElement("div", {
-    className: "rounded-md border transition-colors bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-sm focus-within:border-blue-400 dark:focus-within:border-blue-500"
+    className: "ui-c-161"
   }, React.createElement("div", {
-    className: "px-4 pt-3 pb-2 flex items-center gap-2"
+    className: "ui-c-162"
   }, React.createElement("span", {
-    className: "text-blue-600 dark:text-blue-400 shrink-0"
+    className: "ui-c-163"
   }, React.createElement(L, {
     name: "Plus",
     size: 18
@@ -2816,24 +2857,24 @@ function TaskComposer({
         submit();
       }
     },
-    placeholder: "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0437\u0430\u0434\u0430\u0447\u0443",
-    className: "flex-1 min-w-0 bg-transparent outline-none text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 resize-none overflow-hidden leading-5"
+    placeholder: T.actions.addTask,
+    className: "ui-c-164"
   }), value.trim() && React.createElement("button", {
     onClick: clearText,
-    "aria-label": "\u0420\u045B\u0421\u2021\u0420\u0451\u0421\u0403\u0421\u201A\u0420\u0451\u0421\u201A\u0421\u040A \u0421\u201A\u0420\xB5\u0420\u0454\u0421\u0403\u0421\u201A",
-    className: "shrink-0 w-8 h-8 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg flex items-center justify-center transition-colors"
+    "aria-label": T.actions.clearText,
+    className: "ui-c-165"
   }, React.createElement(L, {
     name: "X",
     size: 16
   })), value.trim() && React.createElement("button", {
     onClick: submit,
-    "aria-label": "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0437\u0430\u0434\u0430\u0447\u0443",
-    className: "shrink-0 w-8 h-8 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg flex items-center justify-center transition-colors"
+    "aria-label": T.actions.addTask,
+    className: "ui-c-166"
   }, React.createElement(L, {
     name: "ArrowUp",
     size: 16
   }))), (value.trim() || hasAny) && React.createElement("div", {
-    className: "px-3 pb-2.5 flex items-center gap-1 flex-wrap border-t border-gray-100 dark:border-gray-700 pt-2"
+    className: "ui-c-167"
   }, pickedDate ? React.createElement("div", {
     className: iconBtn(true)
   }, React.createElement(L, {
@@ -2841,10 +2882,10 @@ function TaskComposer({
     size: 14
   }), React.createElement("span", {
     onClick: onOpenCalendar,
-    className: "cursor-pointer"
+    className: "ui-c-168"
   }, formatDateOnly(pickedDate)), React.createElement("span", {
     onClick: onClearComposerDate,
-    className: "ml-0.5 hover:text-red-500 cursor-pointer"
+    className: "ui-c-169"
   }, React.createElement(L, {
     name: "X",
     size: 11
@@ -2862,10 +2903,10 @@ function TaskComposer({
     size: 14
   }), React.createElement("span", {
     onClick: onOpenReminder,
-    className: "cursor-pointer"
+    className: "ui-c-168"
   }, formatDate(pickedReminder)), React.createElement("span", {
     onClick: onClearComposerReminder,
-    className: "ml-0.5 hover:text-red-500 cursor-pointer"
+    className: "ui-c-169"
   }, React.createElement(L, {
     name: "X",
     size: 11
@@ -2883,10 +2924,10 @@ function TaskComposer({
     size: 14
   }), React.createElement("span", {
     onClick: onOpenRecurrence,
-    className: "cursor-pointer"
+    className: "ui-c-168"
   }, recurrenceLabel(pickedRecurrence)), React.createElement("span", {
     onClick: onClearComposerRecurrence,
-    className: "ml-0.5 hover:text-red-500 cursor-pointer"
+    className: "ui-c-169"
   }, React.createElement(L, {
     name: "X",
     size: 11
@@ -3345,37 +3386,37 @@ function App() {
   }, [ctxMenu, updateTask, toggleTask, deleteTask]);
   const viewMeta = useMemo(() => {
     if (search.trim()) return {
-      title: `Поиск: «${search.trim()}»`,
-      sub: `Найдено: ${filtered.length}`,
-      bg: "from-slate-600 to-slate-800"
+      title: `${T.views.searchPrefix}: \u00ab${search.trim()}\u00bb`,
+      sub: `${T.views.foundPrefix}: ${filtered.length}`,
+      bg: "view-bg-search"
     };
     if (view.startsWith("list:")) {
       const l = lists.find(x => x.id === view.slice(5));
       return {
-        title: (l?.emoji || DEFAULT_EMOJI) + " " + (l?.name || "Список"),
+        title: (l?.emoji || DEFAULT_EMOJI) + " " + (l?.name || T.views.listFallback),
         sub: "",
         bg: gradientOf(l?.color)
       };
     }
     return {
       myday: {
-        title: "Мой день",
+        title: T.views.myday,
         sub: new Date().toLocaleDateString("ru-RU", {
           weekday: "long",
           day: "numeric",
           month: "long"
         }),
-        bg: "from-blue-900 to-indigo-900"
+        bg: "view-bg-myday"
       },
       important: {
-        title: "Важное",
-        sub: "Задачи, отмеченные звёздочкой",
-        bg: "from-yellow-500 to-amber-500"
+        title: T.views.important,
+        sub: T.views.importantSub,
+        bg: "view-bg-important"
       },
       planned: {
-        title: "Запланировано",
-        sub: "Задачи со сроком",
-        bg: "from-rose-900 to-pink-900"
+        title: T.views.planned,
+        sub: T.views.plannedSub,
+        bg: "view-bg-planned"
       }
     }[view];
   }, [view, lists, search, filtered.length]);
@@ -3403,7 +3444,7 @@ function App() {
     if (dx < -50 && sidebarOpen) setSidebarOpen(false);
   }, [openSidebar, sidebarOpen]);
   return React.createElement("div", {
-    className: "flex h-full w-full",
+    className: "ui-c-170",
     onTouchStart: onSwipeStart,
     onTouchEnd: onSwipeEnd
   }, React.createElement(Sidebar, {
@@ -3425,27 +3466,28 @@ function App() {
     onTestNotif: testNotif,
     syncStatus: syncStatus,
     onOpenSync: () => setSyncOpen(true),
+    onRefresh: () => location.reload(),
     dark: dark,
     toggleTheme: toggleTheme
   }), isMobile && React.createElement("div", {
     className: `fixed inset-0 bg-black/40 z-[60] transition-opacity duration-300 ${sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`,
     onClick: () => setSidebarOpen(false)
   }), React.createElement("main", {
-    className: "flex-1 flex flex-col min-w-0"
+    className: "ui-c-171"
   }, React.createElement("header", {
-    className: `bg-gradient-to-r ${viewMeta.bg} text-white px-4 sm:px-6 py-5 flex items-center gap-3 safe-top safe-right`
+    className: `app-header ${viewMeta.bg}`
   }, isMobile && React.createElement("button", {
     onClick: openSidebar,
-    className: "p-2 -ml-2 rounded hover:bg-white/20"
+    className: "ui-c-172"
   }, React.createElement(L, {
     name: "Menu",
     size: 24
   })), React.createElement("div", {
-    className: "flex-1 min-w-0"
+    className: "ui-c-3"
   }, React.createElement("div", {
-    className: "text-xl font-semibold leading-tight truncate"
+    className: "ui-c-173"
   }, viewMeta.title), viewMeta.sub && React.createElement("div", {
-    className: "text-xs opacity-80 capitalize truncate"
+    className: "ui-c-174"
   }, viewMeta.sub)), view.startsWith("list:") && (() => {
     const hl = lists.find(l => l.id === view.slice(5));
     return hl ? React.createElement("button", {
@@ -3453,32 +3495,25 @@ function App() {
         id: hl.id,
         current: hl.color
       }),
-      className: "p-2 rounded hover:bg-white/20",
-      title: "\u0426\u0432\u0435\u0442 \u0441\u043F\u0438\u0441\u043A\u0430"
+      className: "ui-c-175",
+      title: T.actions.listColor
     }, React.createElement(L, {
       name: "Palette",
       size: 20
     })) : null;
   })(), isMobile && React.createElement("button", {
-    onClick: () => location.reload(),
-    className: "p-2 rounded hover:bg-white/20 opacity-55",
-    title: "\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C"
-  }, React.createElement(L, {
-    name: "RefreshCw",
-    size: 17
-  })), isMobile && React.createElement("button", {
     onClick: () => setSearchOpen(true),
-    className: "p-2 rounded hover:bg-white/20"
+    className: "ui-c-175"
   }, React.createElement(L, {
     name: "Search",
     size: 20
   }))), React.createElement("div", {
-    className: "flex-1 overflow-y-auto scroll-thin bg-[#faf9f8] dark:bg-gray-900"
+    className: "ui-c-177"
   }, React.createElement("div", {
-    className: "w-full px-3 sm:px-6 py-4 sm:py-5"
+    className: "ui-c-178"
   }, active.length === 0 && React.createElement("div", {
-    className: "text-center text-gray-400 dark:text-gray-500 text-sm py-10"
-  }, search.trim() ? "Ничего не найдено" : "Нет активных задач"), active.map(t => React.createElement(TaskRow, {
+    className: "ui-c-179"
+  }, search.trim() ? T.empty.noResults : T.empty.noTasks), active.map(t => React.createElement(TaskRow, {
     key: t.id,
     task: t,
     nowTs: nowTs,
@@ -3493,10 +3528,10 @@ function App() {
     onClearDate: clearDate,
     onOpen: t => setOpenTask(t.id)
   })), completed.length > 0 && React.createElement("div", {
-    className: "mt-6"
+    className: "ui-c-180"
   }, React.createElement("button", {
     onClick: () => setShowCompleted(v => !v),
-    className: "flex items-center gap-2 text-xs font-medium mb-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+    className: "ui-c-181"
   }, React.createElement(L, {
     name: showCompleted ? "ChevronDown" : "ChevronRight",
     size: 14
@@ -3527,7 +3562,7 @@ function App() {
     onClearComposerReminder: () => setComposerReminder(null),
     onClearComposerRecurrence: () => setComposerRecurrence(null)
   }) : React.createElement("div", {
-    className: "p-3 sm:p-4 border-t bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 safe-bottom safe-left safe-right"
+    className: "ui-c-182"
   }, React.createElement(TaskComposer, {
     onAdd: addTask,
     pickedDate: composerDate,

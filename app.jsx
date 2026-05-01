@@ -24,62 +24,103 @@ const FIRED_KEY = "mstodo_fired_reminders_v2";
 const FILE_DB_NAME = "mstodo_files_v1";
 const FILE_STORE = "files";
 const SYNC_TABLE = "todo_user_sync";
+const T = {
+  appName: "To Do",
+  views: {
+    myday: "Мой день",
+    important: "Важное",
+    planned: "Запланировано",
+    listFallback: "Список",
+    searchPrefix: "\u041f\u043e\u0438\u0441\u043a",
+    foundPrefix: "\u041d\u0430\u0439\u0434\u0435\u043d\u043e",
+    importantSub: "\u0417\u0430\u0434\u0430\u0447\u0438, \u043e\u0442\u043c\u0435\u0447\u0435\u043d\u043d\u044b\u0435 \u0437\u0432\u0451\u0437\u0434\u043e\u0447\u043a\u043e\u0439",
+    plannedSub: "\u0417\u0430\u0434\u0430\u0447\u0438 \u0441\u043e \u0441\u0440\u043e\u043a\u043e\u043c",
+  },
+  actions: {
+    lightTheme: "\u0421\u0432\u0435\u0442\u043b\u0430\u044f \u0442\u0435\u043c\u0430",
+    darkTheme: "\u0422\u0451\u043c\u043d\u0430\u044f \u0442\u0435\u043c\u0430",
+    toggleTheme: "\u041f\u0435\u0440\u0435\u043a\u043b\u044e\u0447\u0438\u0442\u044c \u0442\u0435\u043c\u0443",
+    refresh: "Обновить",
+    searchTasks: "Поиск задач",
+    createList: "Создать список",
+    sync: "Синхронизация",
+    listColor: "\u0426\u0432\u0435\u0442 \u0441\u043f\u0438\u0441\u043a\u0430",
+    clearText: "Очистить текст",
+    addTask: "Добавить задачу",
+  },
+  empty: {
+    noTasks: "Нет активных задач",
+    noResults: "Ничего не найдено",
+  },
+  colors: {
+    teal: "Бирюзовый",
+    brown: "Шоколадный",
+    purple: "Фиолетовый",
+    pink: "Розовый",
+    red: "Красный",
+    gold: "Золотой",
+    lime: "Лаймовый",
+    green: "Зелёный",
+    cyan: "Голубой",
+    slate: "Графит",
+  },
+};
 const DEFAULT_EMOJI = "📋";
 const EMOJI_BANK = ["📋", "✅", "⭐", "💼", "🏠", "🛒", "🎯", "📚", "💡", "🏋️", "🍎", "✈️", "🎵", "💻", "🎨", "🧘", "🌱", "🔥", "💰", "📦", "🎮", "🐶", "☕", "📝"];
 const COLOR_BANK = [
   {
     id: "teal",
-    label: "Бирюзовый",
-    gradient: "from-emerald-600 to-teal-700",
+    label: T.colors.teal,
+    className: "list-color-teal",
   },
   {
     id: "brown",
-    label: "Шоколадный",
-    gradient: "from-stone-600 to-amber-900",
+    label: T.colors.brown,
+    className: "list-color-brown",
   },
   {
     id: "purple",
-    label: "Фиолетовый",
-    gradient: "from-purple-600 to-fuchsia-700",
+    label: T.colors.purple,
+    className: "list-color-purple",
   },
   {
     id: "pink",
-    label: "Розовый",
-    gradient: "from-rose-500 to-pink-600",
+    label: T.colors.pink,
+    className: "list-color-pink",
   },
   {
     id: "red",
-    label: "Красный",
-    gradient: "from-red-600 to-rose-700",
+    label: T.colors.red,
+    className: "list-color-red",
   },
   {
     id: "gold",
-    label: "Золотой",
-    gradient: "from-amber-400 to-yellow-400",
+    label: T.colors.gold,
+    className: "list-color-gold",
   },
   {
     id: "lime",
-    label: "Лаймовый",
-    gradient: "from-lime-500 to-lime-700",
+    label: T.colors.lime,
+    className: "list-color-lime",
   },
   {
     id: "green",
-    label: "Зелёный",
-    gradient: "from-green-600 to-emerald-700",
+    label: T.colors.green,
+    className: "list-color-green",
   },
   {
     id: "cyan",
-    label: "Голубой",
-    gradient: "from-cyan-500 to-sky-600",
+    label: T.colors.cyan,
+    className: "list-color-cyan",
   },
   {
     id: "slate",
-    label: "Графит",
-    gradient: "from-slate-600 to-slate-800",
+    label: T.colors.slate,
+    className: "list-color-slate",
   },
 ];
 const DEFAULT_COLOR = "teal";
-const gradientOf = (cid) => (COLOR_BANK.find((c) => c.id === cid) || COLOR_BANK[0]).gradient;
+const gradientOf = (cid) => (COLOR_BANK.find((c) => c.id === cid) || COLOR_BANK[0]).className;
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const IS_TOUCH = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
 const WEEKDAYS = {
@@ -592,17 +633,17 @@ function ToastContainer() {
     }, 6000);
   }, []);
   return (
-    /*#__PURE__*/ <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm w-[calc(100%-2rem)] sm:w-full pointer-events-none">
+    /*#__PURE__*/ <div className="ui-c-1">
       {toasts.map((t) => (
         /*#__PURE__*/ <div
           key={t.id}
           className={`pointer-events-auto rounded-xl shadow-2xl border px-4 py-3 flex items-start gap-3
               bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700
               ${t.leaving ? "toast-leave" : "toast-enter"}`}>
-          <span className="text-xl leading-none mt-0.5">{t.icon}</span>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{t.msg}</div>
-            {t.sub && /*#__PURE__*/ <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{t.sub}</div>}
+          <span className="ui-c-2">{t.icon}</span>
+          <div className="ui-c-3">
+            <div className="ui-c-4">{t.msg}</div>
+            {t.sub && /*#__PURE__*/ <div className="ui-c-5">{t.sub}</div>}
           </div>
         </div>
       ))}
@@ -819,26 +860,14 @@ function ThemeToggle({ dark, toggle }) {
   return (
     /*#__PURE__*/ <button
       onClick={toggle}
-      title={dark ? "Светлая тема" : "Тёмная тема"}
+      title={dark ? T.actions.lightTheme : T.actions.darkTheme}
       className={`theme-track flex-shrink-0 ${dark ? "dark-mode" : "light-mode"}`}
-      aria-label="Переключить тему">
-      <div className="theme-thumb">
+      aria-label={T.actions.toggleTheme}>
+      <div className="ui-c-6">
         {dark ? (
-          /*#__PURE__*/ <L
-            name="Moon"
-            size={10}
-            style={{
-              color: "#4338ca",
-            }}
-          />
+          /*#__PURE__*/ <L name="Moon" size={10} className="theme-icon-moon" />
         ) : (
-          /*#__PURE__*/ <L
-            name="Sun"
-            size={10}
-            style={{
-              color: "#f59e0b",
-            }}
-          />
+          /*#__PURE__*/ <L name="Sun" size={10} className="theme-icon-sun" />
         )}
       </div>
     </button>
@@ -857,17 +886,17 @@ function Modal({ open, onClose, children, title, closeOnOverlay = true }) {
   }, [open, onClose]);
   if (!open) return null;
   return (
-    /*#__PURE__*/ <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50" onClick={() => closeOnOverlay && onClose()}>
+    /*#__PURE__*/ <div className="ui-c-7" onClick={() => closeOnOverlay && onClose()}>
       <div
-        className="rounded-xl shadow-2xl w-full max-w-sm pop-in bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 max-h-[90vh] overflow-y-auto"
+        className="ui-c-8"
         onClick={(e) => e.stopPropagation()}>
-        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-          <div className="font-semibold text-gray-900 dark:text-gray-100">{title}</div>
-          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400">
+        <div className="ui-c-9">
+          <div className="ui-c-10">{title}</div>
+          <button onClick={onClose} className="ui-c-11">
             <L name="X" size={16} />
           </button>
         </div>
-        <div className="p-5">{children}</div>
+        <div className="ui-c-12">{children}</div>
       </div>
     </div>
   );
@@ -903,7 +932,7 @@ function CreateListModal({ open, onClose, onCreate }) {
     "w-full text-sm rounded px-3 py-2 focus:outline-none border bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-400 placeholder:text-gray-400 dark:placeholder:text-gray-500";
   return (
     /*#__PURE__*/ <Modal open={open} onClose={onClose} title="Новый список">
-      <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Название</label>
+      <label className="ui-c-13">Название</label>
       <input
         ref={inputRef}
         value={name}
@@ -914,8 +943,8 @@ function CreateListModal({ open, onClose, onCreate }) {
         placeholder="Например: Покупки"
         className={iCls + " mb-4"}
       />
-      <label className="block text-xs text-gray-600 dark:text-gray-400 mb-2">Эмодзи</label>
-      <div className="grid grid-cols-8 gap-1 mb-3">
+      <label className="ui-c-14">Эмодзи</label>
+      <div className="ui-c-15">
         {EMOJI_BANK.map((e) => (
           /*#__PURE__*/ <button
             key={e}
@@ -935,25 +964,25 @@ function CreateListModal({ open, onClose, onCreate }) {
         placeholder="Или вставьте свой эмодзи"
         className={iCls + " mb-4"}
       />
-      <label className="block text-xs text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-1.5">
+      <label className="ui-c-16">
         <L name="Palette" size={13} /> Цвет
       </label>
-      <div className="grid grid-cols-5 gap-2 mb-4">
+      <div className="ui-c-17">
         {COLOR_BANK.map((c) => (
           /*#__PURE__*/ <button
             key={c.id}
             onClick={() => setColor(c.id)}
             title={c.label}
-            className={`aspect-square rounded-lg bg-gradient-to-br ${c.gradient} flex items-center justify-center transition-all ring-2 ${color === c.id ? "ring-blue-400 ring-offset-2 ring-offset-white dark:ring-offset-gray-800" : "ring-transparent hover:ring-white/40"}`}>
-            {color === c.id && /*#__PURE__*/ <L name="Check" size={18} className="text-white" />}
+            className={`color-swatch ${c.className} ${color === c.id ? "color-swatch-selected" : "color-swatch-idle"}`}>
+            {color === c.id && /*#__PURE__*/ <L name="Check" size={18} className="ui-c-18" />}
           </button>
         ))}
       </div>
-      <div className="flex justify-end gap-2">
-        <button onClick={onClose} className="text-sm px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+      <div className="ui-c-19">
+        <button onClick={onClose} className="ui-c-20">
           Отмена
         </button>
-        <button onClick={submit} disabled={!name.trim()} className="text-sm px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">
+        <button onClick={submit} disabled={!name.trim()} className="ui-c-21">
           Создать
         </button>
       </div>
@@ -965,7 +994,7 @@ function CreateListModal({ open, onClose, onCreate }) {
 function ColorPickerModal({ open, onClose, current, onPick }) {
   return (
     /*#__PURE__*/ <Modal open={open} onClose={onClose} title="Цвет списка">
-      <div className="grid grid-cols-5 gap-2 mb-4">
+      <div className="ui-c-17">
         {COLOR_BANK.map((c) => (
           /*#__PURE__*/ <button
             key={c.id}
@@ -974,13 +1003,13 @@ function ColorPickerModal({ open, onClose, current, onPick }) {
               onClose();
             }}
             title={c.label}
-            className={`aspect-square rounded-lg bg-gradient-to-br ${c.gradient} flex items-center justify-center transition-all ring-2 ${current === c.id ? "ring-blue-400 ring-offset-2 ring-offset-white dark:ring-offset-gray-800" : "ring-transparent hover:ring-white/40"}`}>
-            {current === c.id && /*#__PURE__*/ <L name="Check" size={18} className="text-white" />}
+            className={`color-swatch ${c.className} ${current === c.id ? "color-swatch-selected" : "color-swatch-idle"}`}>
+            {current === c.id && /*#__PURE__*/ <L name="Check" size={18} className="ui-c-18" />}
           </button>
         ))}
       </div>
-      <div className="flex justify-end">
-        <button onClick={onClose} className="text-sm px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+      <div className="ui-c-22">
+        <button onClick={onClose} className="ui-c-20">
           Отмена
         </button>
       </div>
@@ -1086,56 +1115,56 @@ function SyncModal({ open, onClose, settings, setSettings, status }) {
   };
   return (
     /*#__PURE__*/ <Modal open={open} onClose={onClose} title="Синхронизация">
-      <label className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-200 mb-4">
+      <label className="ui-c-23">
         <input
           type="checkbox"
           checked={!!draft.enabled}
           onChange={(e) => setDraft((p) => ({ ...p, enabled: e.target.checked }))}
-          className="w-4 h-4"
+          className="ui-c-24"
         />
         Включить синхронизацию
       </label>
       {!syncConfigured && (
-        <div className="mb-4 rounded-lg border border-amber-300/60 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+        <div className="ui-c-25">
           Синхронизация ещё не настроена владельцем сайта.
         </div>
       )}
-      <div className="grid grid-cols-1 gap-3 mb-4">
+      <div className="ui-c-26">
         <div>
-          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Email</label>
-          <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@example.com" className="w-full text-sm rounded px-3 py-2 focus:outline-none border bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-400 placeholder:text-gray-400 dark:placeholder:text-gray-500" />
+          <label className="ui-c-13">Email</label>
+          <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@example.com" className="ui-c-27" />
         </div>
         <div>
-          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Пароль</label>
-          <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="минимум 6 символов" className="w-full text-sm rounded px-3 py-2 focus:outline-none border bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-400 placeholder:text-gray-400 dark:placeholder:text-gray-500" />
+          <label className="ui-c-13">Пароль</label>
+          <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="минимум 6 символов" className="ui-c-27" />
         </div>
       </div>
       <button
         onClick={signInGoogle}
         disabled={busy}
-        className="w-full mb-4 flex items-center justify-center gap-2 rounded bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 px-4 py-2.5 text-sm font-medium text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50">
+        className="ui-c-28">
         <L name="Chrome" size={18} />
         Войти через Google
       </button>
-      <div className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+      <div className="ui-c-29">
         Статус: {status.text}{status.user?.email ? `, ${status.user.email}` : ""}. Вложения-файлы остаются локально на устройстве.
       </div>
-      <div className="flex flex-wrap justify-end gap-2">
+      <div className="ui-c-30">
         {status.user && (
-          <button onClick={signOut} disabled={busy} className="text-sm px-4 py-2 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 disabled:opacity-50">
+          <button onClick={signOut} disabled={busy} className="ui-c-31">
             Выйти
           </button>
         )}
-        <button onClick={onClose} className="text-sm px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+        <button onClick={onClose} className="ui-c-20">
           Закрыть
         </button>
-        <button onClick={() => saveConfig({ enabled: false })} disabled={busy} className="text-sm px-4 py-2 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50">
+        <button onClick={() => saveConfig({ enabled: false })} disabled={busy} className="ui-c-32">
           Выключить
         </button>
-        <button onClick={signUpEmail} disabled={busy} className="text-sm px-4 py-2 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50">
+        <button onClick={signUpEmail} disabled={busy} className="ui-c-32">
           Регистрация
         </button>
-        <button onClick={signInEmail} disabled={busy} className="text-sm px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">
+        <button onClick={signInEmail} disabled={busy} className="ui-c-21">
           Войти
         </button>
       </div>
@@ -1213,26 +1242,26 @@ function DatePickerModal({ open, onClose, onPick, initial, showTime = true }) {
   const sameDay = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
   return (
     /*#__PURE__*/ <Modal open={open} onClose={onClose} title={showTime ? "Напоминание" : "Дата выполнения"} closeOnOverlay={false}>
-      <div className="flex items-center justify-between mb-3">
+      <div className="ui-c-33">
         <button onClick={prevMonth} disabled={!canGoPrev} className={`p-1.5 rounded ${canGoPrev ? "hover:bg-gray-100 dark:hover:bg-gray-700" : "opacity-30 cursor-not-allowed"}`}>
           ‹
         </button>
-        <div className="text-sm font-medium text-gray-800 dark:text-gray-200">
+        <div className="ui-c-34">
           {RU_MONTHS[mo]} {y}
         </div>
-        <button onClick={nextMonth} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
+        <button onClick={nextMonth} className="ui-c-35">
           ›
         </button>
       </div>
       <div onTouchStart={onMonthTouchStart} onTouchEnd={onMonthTouchEnd}>
-      <div className="grid grid-cols-7 gap-1 mb-1">
+      <div className="ui-c-36">
         {RU_WD.map((w) => (
-          /*#__PURE__*/ <div key={w} className="text-[11px] text-center text-gray-500 dark:text-gray-400 py-1">
+          /*#__PURE__*/ <div key={w} className="ui-c-37">
             {w}
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-1 mb-4">
+      <div className="ui-c-38">
         {cells.map((d, i) => {
           if (!d) return /*#__PURE__*/ <div key={i} />;
           const past = d < today;
@@ -1251,30 +1280,30 @@ function DatePickerModal({ open, onClose, onPick, initial, showTime = true }) {
       </div>
       </div>
       {showTime && (
-        /*#__PURE__*/ <div className="flex items-center gap-2 mb-3">
-          <label className="text-xs text-gray-600 dark:text-gray-400">Время</label>
+        /*#__PURE__*/ <div className="ui-c-39">
+          <label className="ui-c-40">Время</label>
           <input
             type="number"
             min="0"
             max="23"
             value={h}
             onChange={(e) => setH(Math.max(0, Math.min(23, parseInt(e.target.value, 10) || 0)))}
-            className="w-14 text-sm rounded px-2 py-1 border bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100"
+            className="ui-c-41"
           />
-          <span className="text-gray-500">:</span>
+          <span className="ui-c-42">:</span>
           <input
             type="number"
             min="0"
             max="59"
             value={m}
             onChange={(e) => setM(Math.max(0, Math.min(59, parseInt(e.target.value, 10) || 0)))}
-            className="w-14 text-sm rounded px-2 py-1 border bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100"
+            className="ui-c-41"
           />
         </div>
       )}
-      {showTime && /*#__PURE__*/ <div className="text-[11px] mb-3 text-gray-500 dark:text-gray-400">В указанное время придёт напоминание.</div>}
-      <div className="flex justify-end gap-2">
-        <button onClick={onClose} className="text-sm px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+      {showTime && /*#__PURE__*/ <div className="ui-c-43">В указанное время придёт напоминание.</div>}
+      <div className="ui-c-19">
+        <button onClick={onClose} className="ui-c-20">
           Отмена
         </button>
         <button
@@ -1292,14 +1321,14 @@ function DatePickerModal({ open, onClose, onPick, initial, showTime = true }) {
 function MoveTaskModal({ open, onClose, lists, currentListId, onPick }) {
   return (
     /*#__PURE__*/ <Modal open={open} onClose={onClose} title="Переместить задачу">
-      <div className="flex flex-col gap-1 max-h-80 overflow-y-auto scroll-thin">
+      <div className="ui-c-44">
         <button
           onClick={() => {
             onPick(null);
             onClose();
           }}
           className={`flex items-center gap-3 px-3 py-2.5 rounded text-left text-sm ${currentListId === null ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300" : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"}`}>
-          <L name="Sun" size={18} className="text-yellow-500 shrink-0" />
+          <L name="Sun" size={18} className="ui-c-45" />
           <span>Без списка</span>
         </button>
         {lists.map((l) => (
@@ -1310,13 +1339,13 @@ function MoveTaskModal({ open, onClose, lists, currentListId, onPick }) {
               onClose();
             }}
             className={`flex items-center gap-3 px-3 py-2.5 rounded text-left text-sm ${currentListId === l.id ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300" : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"}`}>
-            <span className="text-lg">{l.emoji}</span>
+            <span className="ui-c-46">{l.emoji}</span>
             <span>{l.name}</span>
           </button>
         ))}
       </div>
-      <div className="flex justify-end mt-4">
-        <button onClick={onClose} className="text-sm px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+      <div className="ui-c-47">
+        <button onClick={onClose} className="ui-c-20">
           Отмена
         </button>
       </div>
@@ -1360,23 +1389,23 @@ function FileViewer({ file, onClose }) {
   if (!file) return null;
   const isImg = file.type?.startsWith("image/");
   return (
-    /*#__PURE__*/ <div className="fixed inset-0 z-[200] bg-black/95 flex flex-col" onClick={onClose}>
-      <div className="flex items-center justify-between px-4 py-3 safe-top">
-        <span className="text-white/70 text-sm truncate max-w-[75%]">{file.name}</span>
-        <button className="p-2 text-white" onClick={onClose}>
+    /*#__PURE__*/ <div className="ui-c-48" onClick={onClose}>
+      <div className="ui-c-49">
+        <span className="ui-c-50">{file.name}</span>
+        <button className="ui-c-51" onClick={onClose}>
           <L name="X" size={24} />
         </button>
       </div>
-      <div className="flex-1 flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
+      <div className="ui-c-52" onClick={(e) => e.stopPropagation()}>
         {loading ? (
-          /*#__PURE__*/ <div className="text-white/60 text-sm">Загрузка...</div>
+          /*#__PURE__*/ <div className="ui-c-53">Загрузка...</div>
         ) : isImg && fileUrl ? (
-          /*#__PURE__*/ <img src={fileUrl} className="max-w-full max-h-full object-contain rounded-xl" alt={file.name} />
+          /*#__PURE__*/ <img src={fileUrl} className="ui-c-54" alt={file.name} />
         ) : (
-          /*#__PURE__*/ <div className="text-center">
-            <L name="File" size={64} className="text-gray-400 mx-auto mb-4" />
-            <div className="text-white/60 text-sm mb-5">{file.name}</div>
-            <a href={fileUrl || file.data} download={file.name} className="text-blue-400 border border-blue-400/40 px-4 py-2 rounded-lg text-sm">
+          /*#__PURE__*/ <div className="ui-c-55">
+            <L name="File" size={64} className="ui-c-56" />
+            <div className="ui-c-57">{file.name}</div>
+            <a href={fileUrl || file.data} download={file.name} className="ui-c-58">
               Скачать
             </a>
           </div>
@@ -1479,37 +1508,33 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
     e.target.value = "";
   };
   const panelCls = isMobile
-    ? "fixed inset-0 z-50 bg-[#1c1c1e] dark:bg-gray-950 flex flex-col"
-    : "fixed right-0 top-0 bottom-0 z-50 w-[380px] bg-[#1c1c1e] dark:bg-gray-950 flex flex-col shadow-2xl border-l border-gray-700/50";
+    ? "task-detail-panel task-detail-panel-mobile"
+    : "task-detail-panel task-detail-panel-desktop";
   return (
     /*#__PURE__*/ <React.Fragment>
       <FileViewer file={viewFile} onClose={() => setViewFile(null)} />
-      {!isMobile && /*#__PURE__*/ <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />}
+      {!isMobile && /*#__PURE__*/ <div className="ui-c-59" onClick={onClose} />}
       <div
         className={panelCls}
         onTouchStart={onPanelTouchStart}
         onTouchMove={onPanelTouchMove}
         onTouchEnd={onPanelTouchEnd}
-        style={{
-          animation: "slideUp .2s ease-out",
-          overscrollBehaviorY: isMobile ? "contain" : undefined,
-        }}>
-        <style>{`@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:none;opacity:1}}`}</style>
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-700/40 safe-top">
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-200">
+        >
+        <div className="ui-c-60">
+          <button onClick={onClose} className="ui-c-61">
             <L name="ArrowLeft" size={22} />
           </button>
-          <span className="text-sm text-gray-500">{list ? `${list.emoji} ${list.name}` : "Мой день"}</span>
+          <span className="ui-c-62">{list ? `${list.emoji} ${list.name}` : "Мой день"}</span>
         </div>
-        <div className="flex-1 overflow-y-auto scroll-thin">
-          <div className="flex items-start gap-4 px-5 py-5 border-b border-gray-700/30">
-            <button onClick={() => onToggle(task.id)} className="task-check-btn mt-0.5 shrink-0 relative w-6 h-6 flex items-center justify-center">
+        <div className="ui-c-63">
+          <div className="ui-c-64">
+            <button onClick={() => onToggle(task.id)} className="ui-c-65">
               <span
                 className={`absolute inset-0 rounded-full border-2 flex items-center justify-center transition-all ${task.completed ? "bg-blue-600 border-blue-600" : "border-gray-500 hover:border-blue-400"}`}>
-                {task.completed && /*#__PURE__*/ <L name="Check" size={14} className="text-white" />}
+                {task.completed && /*#__PURE__*/ <L name="Check" size={14} className="ui-c-18" />}
               </span>
             </button>
-            <div className="flex-1">
+            <div className="ui-c-66">
               {titleEdit ? (
                 /*#__PURE__*/ <input
                   ref={titleRef}
@@ -1519,7 +1544,7 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
                   onKeyDown={(e) => {
                     if (e.key === "Enter") commitTitle();
                   }}
-                  className="w-full bg-transparent outline-none text-base font-medium text-gray-100 border-b border-blue-500 pb-0.5"
+                  className="ui-c-67"
                 />
               ) : (
                 /*#__PURE__*/ <div
@@ -1539,9 +1564,9 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
               <L name="Star" size={22} fill={task.important ? "currentColor" : "none"} />
             </button>
           </div>
-          <div className="border-b border-gray-700/30">
+          <div className="ui-c-68">
             {steps.map((s) => (
-              /*#__PURE__*/ <div key={s.id} className="flex items-start gap-3 pl-10 pr-5 py-3">
+              /*#__PURE__*/ <div key={s.id} className="ui-c-69">
                 <button
                   onClick={() =>
                     onUpdate(task.id, {
@@ -1555,9 +1580,9 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
                       ),
                     })
                   }
-                  className="task-check-btn shrink-0 relative w-5 h-5 flex items-center justify-center mt-0.5">
+                  className="ui-c-70">
                   <span className={`absolute inset-0 rounded-full border-2 flex items-center justify-center ${s.completed ? "bg-blue-600 border-blue-600" : "border-gray-500"}`}>
-                    {s.completed && /*#__PURE__*/ <L name="Check" size={11} className="text-white" />}
+                    {s.completed && /*#__PURE__*/ <L name="Check" size={11} className="ui-c-18" />}
                   </span>
                 </button>
                 {editingStep?.id === s.id ? (
@@ -1607,7 +1632,7 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
                       }
                       if (e.key === "Escape") setEditingStep(null);
                     }}
-                    className="flex-1 min-w-0 bg-transparent text-sm text-gray-300 outline-none border-b border-blue-500 pb-0.5 resize-none overflow-hidden leading-5"
+                    className="ui-c-71"
                   />
                 ) : (
                   /*#__PURE__*/ <span
@@ -1627,13 +1652,13 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
                       steps: steps.filter((x) => x.id !== s.id),
                     })
                   }
-                  className="p-1 text-gray-600 hover:text-red-400 shrink-0 mt-0.5">
+                  className="ui-c-72">
                   <L name="X" size={14} />
                 </button>
               </div>
             ))}
-            <div className="flex items-center gap-3 px-5 py-3">
-              <span className="w-5 h-5 flex items-center justify-center text-gray-600">
+            <div className="ui-c-73">
+              <span className="ui-c-74">
                 <L name="Plus" size={16} />
               </span>
               <input
@@ -1643,10 +1668,10 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
                   if (e.key === "Enter") addStep();
                 }}
                 placeholder="Добавить шаг"
-                className="flex-1 bg-transparent text-sm text-gray-300 outline-none placeholder:text-gray-600"
+                className="ui-c-75"
               />
               {newStep && (
-                /*#__PURE__*/ <button onClick={addStep} className="text-xs text-blue-400 px-2">
+                /*#__PURE__*/ <button onClick={addStep} className="ui-c-76">
                   ОК
                 </button>
               )}
@@ -1664,12 +1689,12 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
             {task.myDay && !myDayLocked && (
               <button
                 onClick={(e) => { e.stopPropagation(); onUpdate(task.id, { myDay: false }); }}
-                className="p-1 text-gray-600 hover:text-gray-400 rounded">
+                className="ui-c-77">
                 <L name="X" size={14} />
               </button>
             )}
           </div>
-          <button onClick={() => onOpenDate(task)} className="w-full flex items-center gap-4 px-5 py-4 border-b border-gray-700/30 hover:bg-gray-800/30 transition-colors">
+          <button onClick={() => onOpenDate(task)} className="ui-c-78">
             <L name="Calendar" size={20} className={dateOverdue ? "text-red-400" : "text-gray-500"} />
             <span className={`text-sm flex-1 text-left ${dateOverdue ? "text-red-400" : "text-gray-400"}`}>{task.dueDate ? formatDateOnly(task.dueDate) : "Добавить дату выполнения"}</span>
             {task.dueDate && (
@@ -1680,12 +1705,12 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
                     dueDate: null,
                   });
                 }}
-                className="p-1 text-gray-600 hover:text-gray-400">
+                className="ui-c-79">
                 <L name="X" size={14} />
               </button>
             )}
           </button>
-          <button onClick={() => onOpenReminder(task)} className="w-full flex items-center gap-4 px-5 py-4 border-b border-gray-700/30 hover:bg-gray-800/30 transition-colors">
+          <button onClick={() => onOpenReminder(task)} className="ui-c-78">
             <L name="Bell" size={20} className={reminderOverdue ? "text-red-400" : "text-gray-500"} />
             <span className={`text-sm flex-1 text-left ${reminderOverdue ? "text-red-400" : "text-gray-400"}`}>
               {task.reminder ? (_sameDay(new Date(task.reminder), new Date()) ? formatTime(task.reminder) : `${formatDateOnly(task.reminder)}, ${formatTime(task.reminder)}`) : "Напомнить"}
@@ -1699,14 +1724,14 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
                     reminderFired: false,
                   });
                 }}
-                className="p-1 text-gray-600 hover:text-gray-400">
+                className="ui-c-79">
                 <L name="X" size={14} />
               </button>
             )}
           </button>
-          <button onClick={() => onOpenRecurrence(task)} className="w-full flex items-center gap-4 px-5 py-4 border-b border-gray-700/30 hover:bg-gray-800/30 transition-colors">
-            <L name="Repeat" size={20} className="text-gray-500" />
-            <span className="text-sm flex-1 text-left text-gray-400">{task.recurrence ? recurrenceLabel(task.recurrence) : "Повтор"}</span>
+          <button onClick={() => onOpenRecurrence(task)} className="ui-c-78">
+            <L name="Repeat" size={20} className="ui-c-42" />
+            <span className="ui-c-80">{task.recurrence ? recurrenceLabel(task.recurrence) : "Повтор"}</span>
             {task.recurrence && (
               /*#__PURE__*/ <button
                 onClick={(e) => {
@@ -1715,25 +1740,25 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
                     recurrence: null,
                   });
                 }}
-                className="p-1 text-gray-600 hover:text-gray-400">
+                className="ui-c-79">
                 <L name="X" size={14} />
               </button>
             )}
           </button>
           {files.length > 0 && (
-            /*#__PURE__*/ <div className="px-5 py-4 border-b border-gray-700/30 flex flex-wrap gap-3">
+            /*#__PURE__*/ <div className="ui-c-81">
               {files.map((f) => (
-                /*#__PURE__*/ <div key={f.id} className="relative">
+                /*#__PURE__*/ <div key={f.id} className="ui-c-82">
                   {f.type?.startsWith("image/") && f.data ? (
-                    /*#__PURE__*/ <button onClick={() => setViewFile(f)} className="w-16 h-16 rounded-xl overflow-hidden border border-gray-600 hover:border-blue-400">
-                      <img src={f.data} className="w-full h-full object-cover" alt={f.name} />
+                    /*#__PURE__*/ <button onClick={() => setViewFile(f)} className="ui-c-83">
+                      <img src={f.data} className="ui-c-84" alt={f.name} />
                     </button>
                   ) : (
                     /*#__PURE__*/ <button
                       onClick={() => setViewFile(f)}
-                      className="w-16 h-16 rounded-xl border border-gray-600 hover:border-blue-400 flex flex-col items-center justify-center gap-1 bg-gray-800">
-                      <L name="File" size={20} className="text-gray-400" />
-                      <span className="text-[9px] text-gray-500 uppercase">{f.name.split(".").pop()}</span>
+                      className="ui-c-85">
+                      <L name="File" size={20} className="ui-c-86" />
+                      <span className="ui-c-87">{f.name.split(".").pop()}</span>
                     </button>
                   )}
                   <button
@@ -1743,19 +1768,19 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
                         files: files.filter((x) => x.id !== f.id),
                       });
                     }}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-gray-700 hover:bg-red-600 rounded-full flex items-center justify-center border border-gray-600">
-                    <L name="X" size={10} className="text-white" />
+                    className="ui-c-88">
+                    <L name="X" size={10} className="ui-c-18" />
                   </button>
                 </div>
               ))}
             </div>
           )}
-          <button onClick={() => fileInput.current?.click()} className="w-full flex items-center gap-4 px-5 py-4 border-b border-gray-700/30 hover:bg-gray-800/30 transition-colors">
-            <L name="Paperclip" size={20} className="text-gray-500" />
-            <span className="text-sm text-gray-400">Добавить файл</span>
+          <button onClick={() => fileInput.current?.click()} className="ui-c-78">
+            <L name="Paperclip" size={20} className="ui-c-42" />
+            <span className="ui-c-89">Добавить файл</span>
           </button>
-          <input ref={fileInput} type="file" accept="image/*,.pdf,.doc,.docx" className="hidden" onChange={handleFile} />
-          <div className="px-5 py-4">
+          <input ref={fileInput} type="file" accept="image/*,.pdf,.doc,.docx" className="ui-c-90" onChange={handleFile} />
+          <div className="ui-c-91">
             <textarea
               key={task.id}
               defaultValue={task.notes || ""}
@@ -1765,13 +1790,13 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
                 })
               }
               placeholder="Добавить заметку"
-              className="w-full bg-transparent text-sm text-gray-400 placeholder:text-gray-600 outline-none resize-none min-h-[80px]"
+              className="ui-c-92"
               rows={3}
             />
           </div>
         </div>
-        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-700/40 safe-bottom">
-          <span className="text-xs text-gray-600">
+        <div className="ui-c-93">
+          <span className="ui-c-94">
             {new Date(task.createdAt).toLocaleDateString("ru-RU", {
               day: "numeric",
               month: "long",
@@ -1782,7 +1807,7 @@ function TaskDetailPanel({ taskId, tasks, lists, nowTs, isMobile, onClose, onUpd
               onDelete(task.id);
               onClose();
             }}
-            className="p-2 text-red-500/60 hover:text-red-400">
+            className="ui-c-95">
             <L name="Trash2" size={20} />
           </button>
         </div>
@@ -1803,14 +1828,14 @@ function SearchOverlay({ search, setSearch, onClose, tasks, lists, nowTs, onOpen
     return tasks.filter((t) => t.title.toLowerCase().includes(q) || (t.notes || "").toLowerCase().includes(q));
   }, [tasks, search]);
   return (
-    /*#__PURE__*/ <div className="fixed inset-0 z-50 bg-[#1c1c1e] dark:bg-gray-950 flex flex-col">
-      <div className="flex items-center gap-3 px-3 py-2 safe-top border-b border-gray-700/40">
+    /*#__PURE__*/ <div className="ui-c-96">
+      <div className="ui-c-97">
         <button
           onClick={() => {
             setSearch("");
             onClose();
           }}
-          className="p-2 text-gray-400 hover:text-gray-200">
+          className="ui-c-61">
           <L name="ArrowLeft" size={22} />
         </button>
         <input
@@ -1818,30 +1843,30 @@ function SearchOverlay({ search, setSearch, onClose, tasks, lists, nowTs, onOpen
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Поиск"
-          className="flex-1 bg-transparent text-base text-gray-100 outline-none placeholder:text-gray-500"
+          className="ui-c-98"
         />
         {search && (
-          /*#__PURE__*/ <button onClick={() => setSearch("")} className="p-2 text-gray-500">
+          /*#__PURE__*/ <button onClick={() => setSearch("")} className="ui-c-99">
             <L name="X" size={18} />
           </button>
         )}
       </div>
       {!search.trim() ? (
-        /*#__PURE__*/ <div className="flex-1 flex flex-col items-center justify-center gap-5 px-8">
-          <L name="Search" size={72} className="text-gray-700" />
-          <div className="text-center text-gray-500 text-sm leading-relaxed">
+        /*#__PURE__*/ <div className="ui-c-100">
+          <L name="Search" size={72} className="ui-c-101" />
+          <div className="ui-c-102">
             Что вы хотите найти?
             <br />
             Вы можете искать задачи и заметки
           </div>
         </div>
       ) : results.length === 0 ? (
-        /*#__PURE__*/ <div className="flex-1 flex flex-col items-center justify-center gap-3">
-          <L name="SearchX" size={48} className="text-gray-700" />
-          <div className="text-gray-500 text-sm">Ничего не найдено</div>
+        /*#__PURE__*/ <div className="ui-c-103">
+          <L name="SearchX" size={48} className="ui-c-101" />
+          <div className="ui-c-104">Ничего не найдено</div>
         </div>
       ) : (
-        /*#__PURE__*/ <div className="flex-1 overflow-y-auto scroll-thin">
+        /*#__PURE__*/ <div className="ui-c-63">
           {results.map((t) => {
             const overdue = t.dueDate && !t.completed && new Date(t.dueDate) < new Date(nowTs);
             const list = lists.find((l) => l.id === t.listId);
@@ -1849,24 +1874,24 @@ function SearchOverlay({ search, setSearch, onClose, tasks, lists, nowTs, onOpen
               /*#__PURE__*/ <button
                 key={t.id}
                 onClick={() => onOpenTask(t.id)}
-                className="w-full flex items-center gap-4 px-5 py-4 border-b border-gray-700/20 text-left hover:bg-gray-800/30 transition-colors">
+                className="ui-c-105">
                 <span className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center ${t.completed ? "bg-blue-600 border-blue-600" : "border-gray-500"}`}>
-                  {t.completed && /*#__PURE__*/ <L name="Check" size={11} className="text-white" />}
+                  {t.completed && /*#__PURE__*/ <L name="Check" size={11} className="ui-c-18" />}
                 </span>
-                <div className="flex-1 min-w-0">
+                <div className="ui-c-3">
                   <div className={`text-sm ${t.completed ? "line-through text-gray-500" : "text-gray-200"}`}>{t.title}</div>
                   {(t.dueDate || list) && (
-                    /*#__PURE__*/ <div className="flex items-center gap-3 mt-0.5">
+                    /*#__PURE__*/ <div className="ui-c-106">
                       {t.dueDate && /*#__PURE__*/ <span className={`text-[11px] ${overdue ? "text-red-400" : "text-gray-600"}`}>{formatDate(t.dueDate)}</span>}
                       {list && (
-                        /*#__PURE__*/ <span className="text-[11px] text-gray-600">
+                        /*#__PURE__*/ <span className="ui-c-107">
                           {list.emoji} {list.name}
                         </span>
                       )}
                     </div>
                   )}
                 </div>
-                {t.important && /*#__PURE__*/ <L name="Star" size={16} className="text-yellow-400 shrink-0" fill="currentColor" />}
+                {t.important && /*#__PURE__*/ <L name="Star" size={16} className="ui-c-108" fill="currentColor" />}
               </button>
             );
           })}
@@ -1926,38 +1951,38 @@ function ReminderModal({ open, onClose, onPick, current }) {
     /*#__PURE__*/ <Modal open={open} onClose={onClose} title="Напомнить мне" closeOnOverlay={false}>
       {p.laterToday && (
         /*#__PURE__*/ <button onClick={() => pick(p.laterToday)} className={row}>
-          <L name="Clock" size={18} className="text-gray-500 dark:text-gray-400" />
-          <span className="flex-1 text-left">Позднее сегодня</span>
-          <span className="text-xs text-gray-500">{timeText(p.laterToday)}</span>
+          <L name="Clock" size={18} className="ui-c-109" />
+          <span className="ui-c-110">Позднее сегодня</span>
+          <span className="ui-c-111">{timeText(p.laterToday)}</span>
         </button>
       )}
       <button onClick={() => pick(p.tomorrow)} className={row}>
-        <L name="ArrowRightCircle" size={18} className="text-gray-500 dark:text-gray-400" />
-        <span className="flex-1 text-left">Завтра</span>
-        <span className="text-xs text-gray-500">{timeText(p.tomorrow)}</span>
+        <L name="ArrowRightCircle" size={18} className="ui-c-109" />
+        <span className="ui-c-110">Завтра</span>
+        <span className="ui-c-111">{timeText(p.tomorrow)}</span>
       </button>
       <button onClick={() => pick(p.nextWeek)} className={row}>
-        <L name="ChevronsRight" size={18} className="text-gray-500 dark:text-gray-400" />
-        <span className="flex-1 text-left">Следующая неделя</span>
-        <span className="text-xs text-gray-500">{timeText(p.nextWeek)}</span>
+        <L name="ChevronsRight" size={18} className="ui-c-109" />
+        <span className="ui-c-110">Следующая неделя</span>
+        <span className="ui-c-111">{timeText(p.nextWeek)}</span>
       </button>
-      <div className="h-px bg-gray-200 dark:bg-gray-700 my-2" />
-      <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Выбрать дату и время</label>
+      <div className="ui-c-112" />
+      <label className="ui-c-13">Выбрать дату и время</label>
       <input
         type="datetime-local"
         value={custom}
         onChange={(e) => setCustom(e.target.value)}
-        className="w-full text-sm rounded px-3 py-2 focus:outline-none border bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-400 mb-3"
+        className="ui-c-113"
       />
-      <div className="flex justify-between gap-2">
-        <button onClick={() => pick(null)} disabled={!current} className="text-sm px-4 py-2 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 disabled:opacity-40">
+      <div className="ui-c-114">
+        <button onClick={() => pick(null)} disabled={!current} className="ui-c-115">
           Убрать
         </button>
-        <div className="flex gap-2">
-          <button onClick={onClose} className="text-sm px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+        <div className="ui-c-116">
+          <button onClick={onClose} className="ui-c-20">
             Отмена
           </button>
-          <button onClick={applyCustom} disabled={!custom} className="text-sm px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">
+          <button onClick={applyCustom} disabled={!custom} className="ui-c-21">
             ОК
           </button>
         </div>
@@ -2016,27 +2041,27 @@ function RecurrenceModal({ open, onClose, onPick, onOpenCustom, current }) {
             })
           }
           className={row}>
-          <L name={it.icon} size={18} className="text-gray-500 dark:text-gray-400" />
-          <span className="flex-1 text-left">{it.label}</span>
-          {current?.type === it.type && /*#__PURE__*/ <L name="Check" size={16} className="text-blue-500" />}
+          <L name={it.icon} size={18} className="ui-c-109" />
+          <span className="ui-c-110">{it.label}</span>
+          {current?.type === it.type && /*#__PURE__*/ <L name="Check" size={16} className="ui-c-117" />}
         </button>
       ))}
-      <div className="h-px bg-gray-200 dark:bg-gray-700 my-2" />
+      <div className="ui-c-112" />
       <button
         onClick={() => {
           onClose();
           onOpenCustom();
         }}
         className={row}>
-        <L name="Settings2" size={18} className="text-gray-500 dark:text-gray-400" />
-        <span className="flex-1 text-left">Настроить</span>
-        {current?.type === "custom" && /*#__PURE__*/ <L name="Check" size={16} className="text-blue-500" />}
+        <L name="Settings2" size={18} className="ui-c-109" />
+        <span className="ui-c-110">Настроить</span>
+        {current?.type === "custom" && /*#__PURE__*/ <L name="Check" size={16} className="ui-c-117" />}
       </button>
-      <div className="flex justify-between gap-2 mt-3">
-        <button onClick={() => pick(null)} className="text-sm px-4 py-2 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 disabled:opacity-40" disabled={!current}>
+      <div className="ui-c-118">
+        <button onClick={() => pick(null)} className="ui-c-115" disabled={!current}>
           Убрать
         </button>
-        <button onClick={onClose} className="text-sm px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+        <button onClick={onClose} className="ui-c-20">
           Отмена
         </button>
       </div>
@@ -2080,20 +2105,20 @@ function CustomRecurrenceModal({ open, onClose, onPick, initial }) {
   };
   return (
     /*#__PURE__*/ <Modal open={open} onClose={onClose} title="Настроить повтор">
-      <div className="text-sm text-gray-700 dark:text-gray-300 mb-3">Повторять каждые:</div>
-      <div className="flex gap-2 mb-4">
+      <div className="ui-c-119">Повторять каждые:</div>
+      <div className="ui-c-120">
         <input
           type="number"
           min="1"
           max="999"
           value={interval}
           onChange={(e) => setInterval(e.target.value)}
-          className="w-20 text-sm rounded px-3 py-2 focus:outline-none border bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-400"
+          className="ui-c-121"
         />
         <select
           value={unit}
           onChange={(e) => setUnit(e.target.value)}
-          className="flex-1 text-sm rounded px-3 py-2 focus:outline-none border bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-400">
+          className="ui-c-122">
           {units.map((u) => (
             /*#__PURE__*/ <option key={u.v} value={u.v}>
               {pluralRu(n, u.labels)}
@@ -2101,11 +2126,11 @@ function CustomRecurrenceModal({ open, onClose, onPick, initial }) {
           ))}
         </select>
       </div>
-      <div className="flex justify-end gap-2">
-        <button onClick={onClose} className="text-sm px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+      <div className="ui-c-19">
+        <button onClick={onClose} className="ui-c-20">
           Отмена
         </button>
-        <button onClick={apply} className="text-sm px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">
+        <button onClick={apply} className="ui-c-123">
           ОК
         </button>
       </div>
@@ -2147,10 +2172,10 @@ function ContextMenu({ ctx, onClose, actions }) {
         top: posY,
         minWidth: W,
       }}
-      className="fixed z-50 rounded-lg shadow-2xl py-1 pop-in no-select bg-[#2b2b2b] dark:bg-gray-900 dark:border dark:border-gray-700 text-gray-100">
+      className="ui-c-124">
       {actions.map((a, i) =>
         a.divider ? (
-          /*#__PURE__*/ <div key={i} className="h-px bg-white/10 dark:bg-gray-700 my-1" />
+          /*#__PURE__*/ <div key={i} className="ui-c-125" />
         ) : (
           /*#__PURE__*/ <button
             key={i}
@@ -2159,11 +2184,11 @@ function ContextMenu({ ctx, onClose, actions }) {
               onClose();
             }}
             className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-white/10 dark:hover:bg-white/5 transition-colors ${a.danger ? "text-red-400" : ""}`}>
-            <span className="w-5 flex justify-center opacity-80">
+            <span className="ui-c-126">
               <L name={a.icon} size={16} />
             </span>
-            <span className="flex-1 text-left">{a.label}</span>
-            {a.hint && !IS_TOUCH && /*#__PURE__*/ <span className="text-xs opacity-40">{a.hint}</span>}
+            <span className="ui-c-110">{a.label}</span>
+            {a.hint && !IS_TOUCH && /*#__PURE__*/ <span className="ui-c-127">{a.hint}</span>}
           </button>
         )
       )}
@@ -2201,7 +2226,7 @@ function ListRow({ list, active, count, onSelect, onDelete, onRename, onReEmoji,
               ? "fixed inset-x-0 bottom-0 z-[80] rounded-t-2xl bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-2xl p-4 safe-bottom"
               : "absolute left-0 bottom-full mb-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-2 w-56"
           }>
-          {isMobile && <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-300 dark:bg-gray-600" />}
+          {isMobile && <div className="ui-c-128" />}
           <div className={`grid ${isMobile ? "grid-cols-6 gap-2" : "grid-cols-8 gap-1"} mb-3`}>
             {EMOJI_BANK.map((e) => (
               /*#__PURE__*/ <button
@@ -2214,7 +2239,7 @@ function ListRow({ list, active, count, onSelect, onDelete, onRename, onReEmoji,
           </div>
           <input
             placeholder="Свой эмодзи…"
-            className="w-full text-sm bg-gray-50 dark:bg-gray-700 rounded px-3 py-2 outline-none border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100"
+            className="ui-c-129"
             onKeyDown={(ev) => {
               if (ev.key === "Enter") {
                 const v = ev.target.value.trim();
@@ -2225,16 +2250,16 @@ function ListRow({ list, active, count, onSelect, onDelete, onRename, onReEmoji,
             onClick={(ev) => ev.stopPropagation()}
           />
           {isMobile && (
-            <button onClick={(ev) => { ev.stopPropagation(); setEmojiOpen(false); }} className="mt-3 w-full rounded bg-gray-100 dark:bg-gray-700 px-3 py-2 text-sm text-gray-700 dark:text-gray-200">
+            <button onClick={(ev) => { ev.stopPropagation(); setEmojiOpen(false); }} className="ui-c-130">
               Готово
             </button>
           )}
         </div>
       )}
-      <div className="flex items-center gap-3 px-3 py-2 text-sm">
+      <div className="ui-c-131">
         <button
           onClick={(e) => { e.stopPropagation(); setEmojiOpen((o) => !o); }}
-          className="text-base leading-none w-5 text-center shrink-0 hover:scale-110 transition-transform"
+          className="ui-c-132"
           title="Изменить эмодзи">
           {list.emoji || DEFAULT_EMOJI}
         </button>
@@ -2273,7 +2298,7 @@ function ListRow({ list, active, count, onSelect, onDelete, onRename, onReEmoji,
                 e.stopPropagation();
                 setEditing(true);
               }}
-              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              className="ui-c-133"
               title="Переименовать">
               <L name="Pencil" size={13} />
             </button>
@@ -2282,7 +2307,7 @@ function ListRow({ list, active, count, onSelect, onDelete, onRename, onReEmoji,
                 e.stopPropagation();
                 if (confirm(`Удалить список «${list.name}»?`)) onDelete(list.id);
               }}
-              className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+              className="ui-c-134">
               <L name="Trash2" size={13} />
             </button>
           </React.Fragment>
@@ -2312,23 +2337,24 @@ function Sidebar({
   onTestNotif,
   syncStatus,
   onOpenSync,
+  onRefresh,
   dark,
   toggleTheme,
 }) {
   const builtins = [
     {
       id: "myday",
-      label: "Мой день",
+      label: T.views.myday,
       icon: "Sun",
     },
     {
       id: "important",
-      label: "Важное",
+      label: T.views.important,
       icon: "Star",
     },
     {
       id: "planned",
-      label: "Запланировано",
+      label: T.views.planned,
       icon: "CalendarDays",
     },
   ];
@@ -2337,43 +2363,48 @@ function Sidebar({
       className={`sidebar-bg border-r border-gray-200 dark:border-gray-700/60 flex flex-col w-72 shrink-0
         ${isMobile ? "fixed inset-y-0 left-0 z-[70] shadow-2xl transition-transform duration-300 ease-out" : ""}
         ${isMobile && !open ? "-translate-x-full" : "translate-x-0"}`}>
-      <div className="px-3 pt-3 pb-2 flex items-center justify-between gap-2 safe-top">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shrink-0">
+      <div className="ui-c-135">
+        <div className="ui-c-136">
+          <div className="ui-c-137">
             <L name="CheckCircle2" size={18} />
           </div>
-          <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">To Do</div>
+          <div className="ui-c-138">{T.appName}</div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="ui-c-139">
           <ThemeToggle dark={dark} toggle={toggleTheme} />
           {isMobile && (
-            /*#__PURE__*/ <button onClick={onClose} className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400">
+            /*#__PURE__*/ <button onClick={onRefresh} className="sidebar-refresh-btn" title={T.actions.refresh}>
+              <L name="RefreshCw" size={17} />
+            </button>
+          )}
+          {isMobile && (
+            /*#__PURE__*/ <button onClick={onClose} className="ui-c-140">
               <L name="X" size={22} />
             </button>
           )}
         </div>
       </div>
       {!isMobile && (
-        /*#__PURE__*/ <div className="px-3 pb-2">
-          <div className="relative">
-            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+        /*#__PURE__*/ <div className="ui-c-141">
+          <div className="ui-c-82">
+            <span className="ui-c-142">
               <L name="Search" size={15} />
             </span>
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Поиск задач"
-              className="w-full text-sm rounded-md pl-8 pr-8 py-2 focus:outline-none border bg-white/70 dark:bg-gray-800/60 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:bg-white dark:focus:bg-gray-800 focus:border-blue-400"
+              placeholder={T.actions.searchTasks}
+              className="ui-c-143"
             />
             {search && (
-              /*#__PURE__*/ <button onClick={() => setSearch("")} className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400">
+              /*#__PURE__*/ <button onClick={() => setSearch("")} className="ui-c-144">
                 <L name="X" size={13} />
               </button>
             )}
           </div>
         </div>
       )}
-      <nav className="flex-1 overflow-y-auto scroll-thin px-2">
+      <nav className="ui-c-145">
         {builtins.map((it) => {
           const active = view === it.id && !search;
           return (
@@ -2386,17 +2417,17 @@ function Sidebar({
               }}
               className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-md text-sm mb-0.5 transition-colors border
                   ${active ? "bg-white dark:bg-gray-800/80 shadow-sm border-gray-200 dark:border-gray-700 text-blue-700 dark:text-blue-400 font-medium" : "hover:bg-white/70 dark:hover:bg-gray-800/50 border-transparent text-gray-700 dark:text-gray-300"}`}>
-              <span className="flex items-center gap-3">
+              <span className="ui-c-146">
                 <span className={active ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"}>
                   <L name={it.icon} size={18} />
                 </span>
                 {it.label}
               </span>
-              {counts[it.id] > 0 && /*#__PURE__*/ <span className="text-xs text-gray-500 dark:text-gray-500">{counts[it.id]}</span>}
+              {counts[it.id] > 0 && /*#__PURE__*/ <span className="ui-c-147">{counts[it.id]}</span>}
             </button>
           );
         })}
-        {lists.length > 0 && /*#__PURE__*/ <div className="h-px bg-gray-200 dark:bg-gray-700 my-2 mx-2" />}
+        {lists.length > 0 && /*#__PURE__*/ <div className="ui-c-148" />}
         {lists.map((l) => (
           /*#__PURE__*/ <ListRow
             key={l.id}
@@ -2415,22 +2446,22 @@ function Sidebar({
           />
         ))}
       </nav>
-      <div className="border-t border-gray-200 dark:border-gray-700 p-2 space-y-0.5 safe-bottom">
+      <div className="ui-c-149">
         {notifStatus === "denied" && (
-          /*#__PURE__*/ <div className="px-3 py-1.5 text-[11px] text-red-500 flex items-center gap-1">
+          /*#__PURE__*/ <div className="ui-c-150">
             <L name="BellOff" size={12} /> Уведомления заблокированы в браузере
           </div>
         )}
         <button
           onClick={onOpenCreate}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/50">
-          <L name="Plus" size={18} /> Создать список
+          className="ui-c-151">
+          <L name="Plus" size={18} /> {T.actions.createList}
         </button>
         <button
           onClick={onOpenSync}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-800/50">
+          className="ui-c-152">
           <L name={syncStatus.state === "on" ? "CloudCheck" : syncStatus.state === "syncing" ? "RefreshCw" : "Cloud"} size={18} />
-          <span className="flex-1 text-left">Синхронизация</span>
+          <span className="ui-c-110">Синхронизация</span>
           <span className={`w-2 h-2 rounded-full ${syncStatus.state === "on" ? "bg-green-500" : syncStatus.state === "syncing" ? "bg-blue-500" : syncStatus.state === "warn" ? "bg-amber-500" : "bg-gray-400"}`} />
         </button>
       </div>
@@ -2480,25 +2511,25 @@ const TaskRow = memo(function TaskRow({ task, showListEmoji, listEmoji, nowTs, i
         onContext(e, task);
       }}
       {...(IS_TOUCH ? longPress : {})}
-      className="fade-in group rounded-md mb-1.5 transition-shadow border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow-sm dark:hover:border-gray-600 task-row">
-      <div className="flex items-center gap-3 px-4 py-3">
+      className="ui-c-153 group">
+      <div className="ui-c-154">
         <button
           onClick={() => onToggle(task.id)}
-          className="task-check-btn relative w-6 h-6 shrink-0 flex items-center justify-center"
+          className="ui-c-155"
           title="Отметить выполненной">
           <span
             className={`absolute inset-0 rounded-full border-2 flex items-center justify-center transition-all duration-200
               ${task.completed ? "bg-blue-600 border-blue-600 opacity-100" : "border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-500"}
               ${swapEmoji ? "opacity-0 group-hover:opacity-100" : "opacity-100"}`}>
-            {task.completed && /*#__PURE__*/ <L name="Check" size={14} className="text-white" />}
+            {task.completed && /*#__PURE__*/ <L name="Check" size={14} className="ui-c-18" />}
           </span>
           {swapEmoji && (
-            /*#__PURE__*/ <span className="absolute inset-0 flex items-center justify-center text-base leading-none opacity-100 group-hover:opacity-0 transition-opacity duration-200 pointer-events-none">
+            /*#__PURE__*/ <span className="ui-c-156">
               {listEmoji}
             </span>
           )}
         </button>
-        <div className="flex-1 min-w-0" onClick={handleBodyClick}>
+        <div className="ui-c-3" onClick={handleBodyClick}>
           {!IS_TOUCH && editing ? (
             /*#__PURE__*/ <input
               ref={inputRef}
@@ -2512,7 +2543,7 @@ const TaskRow = memo(function TaskRow({ task, showListEmoji, listEmoji, nowTs, i
                   setEditing(false);
                 }
               }}
-              className="w-full text-sm outline-none border-b border-blue-400 bg-transparent pb-0.5 text-gray-900 dark:text-gray-100"
+              className="ui-c-157"
             />
           ) : (
             /*#__PURE__*/ <div className={`text-sm cursor-pointer break-words text-gray-900 dark:text-gray-100 ${task.completed ? "strike" : ""}`}>{task.title}</div>
@@ -2555,7 +2586,7 @@ const TaskRow = memo(function TaskRow({ task, showListEmoji, listEmoji, nowTs, i
             if (metas.length === 0) return null;
             const compact = isMobile && metas.length >= 4;
             return (
-              /*#__PURE__*/ <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              /*#__PURE__*/ <div className="ui-c-158">
                 {metas.map((m, i) => (
                   /*#__PURE__*/ <span key={i} className={`flex items-center gap-1 text-[11px] ${m.cls}`}>
                     <L name={m.icon} size={11} />
@@ -2646,8 +2677,8 @@ function TaskComposer({
     return (
       /*#__PURE__*/ <button
         onClick={openFab}
-        aria-label="Добавить задачу"
-        className="fixed bottom-6 left-4 z-50 w-14 h-14 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-full flex items-center justify-center shadow-xl transition-transform duration-200 safe-bottom">
+        aria-label={T.actions.addTask}
+        className="ui-c-159">
         <L name="Plus" size={26} />
       </button>
     );
@@ -2657,11 +2688,11 @@ function TaskComposer({
   const overlay = isMobile && fabOpen;
   return (
     /*#__PURE__*/ <>
-      {overlay && /*#__PURE__*/ <div className="fixed inset-0 z-40 bg-black/20" onClick={() => { if (!value.trim() && !hasAny) setFabOpen(false); }} />}
+      {overlay && /*#__PURE__*/ <div className="ui-c-160" onClick={() => { if (!value.trim() && !hasAny) setFabOpen(false); }} />}
       <div className={overlay ? "fixed bottom-0 left-0 right-0 z-50 p-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 shadow-2xl safe-bottom safe-left safe-right composer-slide-up" : ""}>
-        <div className="rounded-md border transition-colors bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-sm focus-within:border-blue-400 dark:focus-within:border-blue-500">
-          <div className="px-4 pt-3 pb-2 flex items-center gap-2">
-            <span className="text-blue-600 dark:text-blue-400 shrink-0">
+        <div className="ui-c-161">
+          <div className="ui-c-162">
+            <span className="ui-c-163">
               <L name="Plus" size={18} />
             </span>
             <textarea
@@ -2672,33 +2703,33 @@ function TaskComposer({
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
               }}
-              placeholder="Добавить задачу"
-              className="flex-1 min-w-0 bg-transparent outline-none text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 resize-none overflow-hidden leading-5"
+              placeholder={T.actions.addTask}
+              className="ui-c-164"
             />
             {value.trim() && (
               /*#__PURE__*/ <button
                 onClick={clearText}
-                aria-label="РћС‡РёСЃС‚РёС‚СЊ С‚РµРєСЃС‚"
-                className="shrink-0 w-8 h-8 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg flex items-center justify-center transition-colors">
+                aria-label={T.actions.clearText}
+                className="ui-c-165">
                 <L name="X" size={16} />
               </button>
             )}
             {value.trim() && (
               /*#__PURE__*/ <button
                 onClick={submit}
-                aria-label="Добавить задачу"
-                className="shrink-0 w-8 h-8 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg flex items-center justify-center transition-colors">
+                aria-label={T.actions.addTask}
+                className="ui-c-166">
                 <L name="ArrowUp" size={16} />
               </button>
             )}
           </div>
           {(value.trim() || hasAny) && (
-            <div className="px-3 pb-2.5 flex items-center gap-1 flex-wrap border-t border-gray-100 dark:border-gray-700 pt-2">
+            <div className="ui-c-167">
               {pickedDate ? (
                 <div className={iconBtn(true)}>
                   <L name="CalendarDays" size={14} />
-                  <span onClick={onOpenCalendar} className="cursor-pointer">{formatDateOnly(pickedDate)}</span>
-                  <span onClick={onClearComposerDate} className="ml-0.5 hover:text-red-500 cursor-pointer"><L name="X" size={11} /></span>
+                  <span onClick={onOpenCalendar} className="ui-c-168">{formatDateOnly(pickedDate)}</span>
+                  <span onClick={onClearComposerDate} className="ui-c-169"><L name="X" size={11} /></span>
                 </div>
               ) : (
                 <button onClick={onOpenCalendar} title="Срок выполнения" className={iconBtn(false)}>
@@ -2708,8 +2739,8 @@ function TaskComposer({
               {pickedReminder ? (
                 <div className={iconBtn(true)}>
                   <L name="Bell" size={14} />
-                  <span onClick={onOpenReminder} className="cursor-pointer">{formatDate(pickedReminder)}</span>
-                  <span onClick={onClearComposerReminder} className="ml-0.5 hover:text-red-500 cursor-pointer"><L name="X" size={11} /></span>
+                  <span onClick={onOpenReminder} className="ui-c-168">{formatDate(pickedReminder)}</span>
+                  <span onClick={onClearComposerReminder} className="ui-c-169"><L name="X" size={11} /></span>
                 </div>
               ) : (
                 <button onClick={onOpenReminder} title="Напомнить мне" className={iconBtn(false)}>
@@ -2719,8 +2750,8 @@ function TaskComposer({
               {pickedRecurrence ? (
                 <div className={iconBtn(true)}>
                   <L name="Repeat" size={14} />
-                  <span onClick={onOpenRecurrence} className="cursor-pointer">{recurrenceLabel(pickedRecurrence)}</span>
-                  <span onClick={onClearComposerRecurrence} className="ml-0.5 hover:text-red-500 cursor-pointer"><L name="X" size={11} /></span>
+                  <span onClick={onOpenRecurrence} className="ui-c-168">{recurrenceLabel(pickedRecurrence)}</span>
+                  <span onClick={onClearComposerRecurrence} className="ui-c-169"><L name="X" size={11} /></span>
                 </div>
               ) : (
                 <button onClick={onOpenRecurrence} title="Повторение задачи" className={iconBtn(false)}>
@@ -3328,37 +3359,37 @@ function App() {
   const viewMeta = useMemo(() => {
     if (search.trim())
       return {
-        title: `Поиск: «${search.trim()}»`,
-        sub: `Найдено: ${filtered.length}`,
-        bg: "from-slate-600 to-slate-800",
+        title: `${T.views.searchPrefix}: \u00ab${search.trim()}\u00bb`,
+        sub: `${T.views.foundPrefix}: ${filtered.length}`,
+        bg: "view-bg-search",
       };
     if (view.startsWith("list:")) {
       const l = lists.find((x) => x.id === view.slice(5));
       return {
-        title: (l?.emoji || DEFAULT_EMOJI) + " " + (l?.name || "Список"),
+        title: (l?.emoji || DEFAULT_EMOJI) + " " + (l?.name || T.views.listFallback),
         sub: "",
         bg: gradientOf(l?.color),
       };
     }
     return {
       myday: {
-        title: "Мой день",
+        title: T.views.myday,
         sub: new Date().toLocaleDateString("ru-RU", {
           weekday: "long",
           day: "numeric",
           month: "long",
         }),
-        bg: "from-blue-900 to-indigo-900",
+        bg: "view-bg-myday",
       },
       important: {
-        title: "Важное",
-        sub: "Задачи, отмеченные звёздочкой",
-        bg: "from-yellow-500 to-amber-500",
+        title: T.views.important,
+        sub: T.views.importantSub,
+        bg: "view-bg-important",
       },
       planned: {
-        title: "Запланировано",
-        sub: "Задачи со сроком",
-        bg: "from-rose-900 to-pink-900",
+        title: T.views.planned,
+        sub: T.views.plannedSub,
+        bg: "view-bg-planned",
       },
     }[view];
   }, [view, lists, search, filtered.length]);
@@ -3383,7 +3414,7 @@ function App() {
     if (dx < -50 && sidebarOpen) setSidebarOpen(false);
   }, [openSidebar, sidebarOpen]);
   return (
-    /*#__PURE__*/ <div className="flex h-full w-full" onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd}>
+    /*#__PURE__*/ <div className="ui-c-170" onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd}>
       <Sidebar
         view={view}
         setView={setView}
@@ -3403,6 +3434,7 @@ function App() {
         onTestNotif={testNotif}
         syncStatus={syncStatus}
         onOpenSync={() => setSyncOpen(true)}
+        onRefresh={() => location.reload()}
         dark={dark}
         toggleTheme={toggleTheme}
       />
@@ -3410,39 +3442,34 @@ function App() {
         className={`fixed inset-0 bg-black/40 z-[60] transition-opacity duration-300 ${sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onClick={() => setSidebarOpen(false)}
       />}
-      <main className="flex-1 flex flex-col min-w-0">
-        <header className={`bg-gradient-to-r ${viewMeta.bg} text-white px-4 sm:px-6 py-5 flex items-center gap-3 safe-top safe-right`}>
+      <main className="ui-c-171">
+        <header className={`app-header ${viewMeta.bg}`}>
           {isMobile && (
-            /*#__PURE__*/ <button onClick={openSidebar} className="p-2 -ml-2 rounded hover:bg-white/20">
+            /*#__PURE__*/ <button onClick={openSidebar} className="ui-c-172">
               <L name="Menu" size={24} />
             </button>
           )}
-          <div className="flex-1 min-w-0">
-            <div className="text-xl font-semibold leading-tight truncate">{viewMeta.title}</div>
-            {viewMeta.sub && /*#__PURE__*/ <div className="text-xs opacity-80 capitalize truncate">{viewMeta.sub}</div>}
+          <div className="ui-c-3">
+            <div className="ui-c-173">{viewMeta.title}</div>
+            {viewMeta.sub && /*#__PURE__*/ <div className="ui-c-174">{viewMeta.sub}</div>}
           </div>
           {view.startsWith("list:") && (() => {
             const hl = lists.find((l) => l.id === view.slice(5));
             return hl ? (
-              /*#__PURE__*/ <button onClick={() => setColorPicker({ id: hl.id, current: hl.color })} className="p-2 rounded hover:bg-white/20" title="Цвет списка">
+              /*#__PURE__*/ <button onClick={() => setColorPicker({ id: hl.id, current: hl.color })} className="ui-c-175" title={T.actions.listColor}>
                 <L name="Palette" size={20} />
               </button>
             ) : null;
           })()}
           {isMobile && (
-            /*#__PURE__*/ <button onClick={() => location.reload()} className="p-2 rounded hover:bg-white/20 opacity-55" title="Обновить">
-              <L name="RefreshCw" size={17} />
-            </button>
-          )}
-          {isMobile && (
-            /*#__PURE__*/ <button onClick={() => setSearchOpen(true)} className="p-2 rounded hover:bg-white/20">
+            /*#__PURE__*/ <button onClick={() => setSearchOpen(true)} className="ui-c-175">
               <L name="Search" size={20} />
             </button>
           )}
         </header>
-        <div className="flex-1 overflow-y-auto scroll-thin bg-[#faf9f8] dark:bg-gray-900">
-          <div className="w-full px-3 sm:px-6 py-4 sm:py-5">
-            {active.length === 0 && /*#__PURE__*/ <div className="text-center text-gray-400 dark:text-gray-500 text-sm py-10">{search.trim() ? "Ничего не найдено" : "Нет активных задач"}</div>}
+        <div className="ui-c-177">
+          <div className="ui-c-178">
+            {active.length === 0 && /*#__PURE__*/ <div className="ui-c-179">{search.trim() ? T.empty.noResults : T.empty.noTasks}</div>}
             {active.map((t) => (
               /*#__PURE__*/ <TaskRow
                 key={t.id}
@@ -3461,10 +3488,10 @@ function App() {
               />
             ))}
             {completed.length > 0 && (
-              /*#__PURE__*/ <div className="mt-6">
+              /*#__PURE__*/ <div className="ui-c-180">
                 <button
                   onClick={() => setShowCompleted((v) => !v)}
-                  className="flex items-center gap-2 text-xs font-medium mb-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200">
+                  className="ui-c-181">
                   <L name={showCompleted ? "ChevronDown" : "ChevronRight"} size={14} />
                   Завершённые ({completed.length})
                 </button>
@@ -3506,7 +3533,7 @@ function App() {
               onClearComposerRecurrence={() => setComposerRecurrence(null)}
             />
           ) : (
-            /*#__PURE__*/ <div className="p-3 sm:p-4 border-t bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 safe-bottom safe-left safe-right">
+            /*#__PURE__*/ <div className="ui-c-182">
               <TaskComposer
                 onAdd={addTask}
                 pickedDate={composerDate}
