@@ -18,9 +18,12 @@ const { useState, useEffect, useMemo, useRef, useCallback, memo } = React;
 const STORAGE_TASKS = "mstodo_clone_tasks_v3";
 const STORAGE_LISTS = "mstodo_clone_lists_v3";
 const STORAGE_THEME = "mstodo_theme";
+const STORAGE_SYNC = "mstodo_sync_settings_v1";
 const FIRED_KEY = "mstodo_fired_reminders_v2";
 const FILE_DB_NAME = "mstodo_files_v1";
 const FILE_STORE = "files";
+const SYNC_SCHEMA_VERSION = 1;
+const SYNC_DEFAULT_PATH = "todo-data.json";
 const T = {
   appName: "To Do",
   views: {
@@ -306,6 +309,95 @@ const isSameDay = (iso, ref = new Date()) => {
   const d = new Date(iso);
   return d.getFullYear() === ref.getFullYear() && d.getMonth() === ref.getMonth() && d.getDate() === ref.getDate();
 };
+const nowIso = () => new Date().toISOString();
+const makeClientId = () => "client_" + uid();
+const getClientId = () => {
+  try {
+    const key = "mstodo_sync_client_id";
+    let id = localStorage.getItem(key);
+    if (!id) {
+      id = makeClientId();
+      localStorage.setItem(key, id);
+    }
+    return id;
+  } catch {
+    return makeClientId();
+  }
+};
+const cleanSyncSettings = (s = {}) => ({
+  provider: "github",
+  enabled: !!s.enabled,
+  owner: s.owner || "",
+  repo: s.repo || "",
+  branch: s.branch || "main",
+  path: s.path || SYNC_DEFAULT_PATH,
+  token: s.token || "",
+  lastSyncAt: s.lastSyncAt || null,
+  lastRemoteUpdatedAt: s.lastRemoteUpdatedAt || null,
+});
+const syncReady = (s) => !!(s?.owner && s?.repo && s?.branch && s?.path && s?.token);
+function encodeBase64Unicode(text) {
+  const bytes = new TextEncoder().encode(text);
+  let bin = "";
+  bytes.forEach((b) => (bin += String.fromCharCode(b)));
+  return btoa(bin);
+}
+function decodeBase64Unicode(text) {
+  const bin = atob((text || "").replace(/\s/g, ""));
+  const bytes = Uint8Array.from(bin, (ch) => ch.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+function githubApiUrl(s) {
+  const path = String(s.path || SYNC_DEFAULT_PATH)
+    .split("/")
+    .map(encodeURIComponent)
+    .join("/");
+  return `https://api.github.com/repos/${encodeURIComponent(s.owner)}/${encodeURIComponent(s.repo)}/contents/${path}`;
+}
+function githubHeaders(s) {
+  return {
+    Accept: "application/vnd.github+json",
+    Authorization: `Bearer ${s.token}`,
+    "X-GitHub-Api-Version": "2022-11-28",
+  };
+}
+async function githubReadSnapshot(settings) {
+  const res = await fetch(`${githubApiUrl(settings)}?ref=${encodeURIComponent(settings.branch)}`, {
+    headers: githubHeaders(settings),
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`GitHub read failed: ${res.status}`);
+  const file = await res.json();
+  const data = JSON.parse(decodeBase64Unicode(file.content || ""));
+  return { data, sha: file.sha };
+}
+async function githubWriteSnapshot(settings, data, sha) {
+  const body = {
+    message: "Sync To Do data",
+    branch: settings.branch,
+    content: encodeBase64Unicode(JSON.stringify(data, null, 2)),
+  };
+  if (sha) body.sha = sha;
+  const res = await fetch(githubApiUrl(settings), {
+    method: "PUT",
+    headers: {
+      ...githubHeaders(settings),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`GitHub write failed: ${res.status}`);
+  return res.json();
+}
+function buildSyncSnapshot(tasks, lists, updatedAt) {
+  return {
+    schemaVersion: SYNC_SCHEMA_VERSION,
+    updatedAt: updatedAt || nowIso(),
+    clientId: getClientId(),
+    tasks,
+    lists,
+  };
+}
 
 // ─── STORAGE ──────────────────────────────────────────────────────
 function useLocalStorage(key, initial) {
@@ -738,6 +830,64 @@ function Modal({ open, onClose, children, title, closeOnOverlay = true }) {
 }
 
 // ─── MODAL: СОЗДАТЬ СПИСОК ────────────────────────────────────────
+function SyncSettingsModal({ open, onClose, settings, onSave, onSyncNow, syncState }) {
+  const [draft, setDraft] = useState(() => cleanSyncSettings(settings));
+  useEffect(() => {
+    if (open) setDraft(cleanSyncSettings(settings));
+  }, [open, settings]);
+  const set = (key, value) => setDraft((p) => ({ ...p, [key]: value }));
+  const save = () => {
+    const next = cleanSyncSettings({ ...draft, enabled: syncReady(draft) ? draft.enabled : false });
+    onSave(next);
+  };
+  const canSync = syncReady(draft);
+  return (
+    /*#__PURE__*/ <Modal open={open} onClose={onClose} title="Синхронизация GitHub">
+      <div className="space-y-3">
+        <label className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-200">
+          <input
+            type="checkbox"
+            checked={!!draft.enabled}
+            onChange={(e) => set("enabled", e.target.checked)}
+            className="w-4 h-4"
+          />
+          Включить автосинхронизацию
+        </label>
+        <div className="rounded-md border border-amber-300/60 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:text-amber-200">
+          Временный режим: задачи и списки хранятся в JSON-файле GitHub. Вложения пока остаются только в этом браузере.
+        </div>
+        <div className="grid grid-cols-1 gap-2">
+          <input value={draft.owner} onChange={(e) => set("owner", e.target.value.trim())} placeholder="GitHub username" className="ui-c-27" />
+          <input value={draft.repo} onChange={(e) => set("repo", e.target.value.trim())} placeholder="Репозиторий, например todo-sync" className="ui-c-27" />
+          <input value={draft.branch} onChange={(e) => set("branch", e.target.value.trim() || "main")} placeholder="Ветка: main" className="ui-c-27" />
+          <input value={draft.path} onChange={(e) => set("path", e.target.value.trim() || SYNC_DEFAULT_PATH)} placeholder="Файл: todo-data.json" className="ui-c-27" />
+          <input value={draft.token} onChange={(e) => set("token", e.target.value.trim())} placeholder="GitHub token" type="password" className="ui-c-27" />
+        </div>
+        <div className="text-xs text-gray-500 dark:text-gray-400">
+          Токен нужен с правом Contents: Read and write для выбранного приватного репозитория.
+        </div>
+        {settings.lastSyncAt && (
+          /*#__PURE__*/ <div className="text-xs text-gray-500 dark:text-gray-400">
+            Последняя синхронизация: {new Date(settings.lastSyncAt).toLocaleString("ru-RU")}
+          </div>
+        )}
+        {syncState.message && (
+          /*#__PURE__*/ <div className={`text-xs ${syncState.error ? "text-red-500" : "text-gray-500 dark:text-gray-400"}`}>
+            {syncState.message}
+          </div>
+        )}
+        <div className="flex flex-wrap justify-end gap-2 pt-1">
+          <button onClick={onClose} className="ui-c-20">Закрыть</button>
+          <button onClick={save} className="ui-c-32">Сохранить</button>
+          <button onClick={() => onSyncNow(draft)} disabled={!canSync || syncState.busy} className="ui-c-21">
+            {syncState.busy ? "Синхронизация..." : "Синхронизировать"}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 function CreateListModal({ open, onClose, onCreate }) {
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState(DEFAULT_EMOJI);
@@ -2013,6 +2163,10 @@ function Sidebar({
   onEnableNotif,
   onTestNotif,
   onRefresh,
+  syncSettings,
+  syncState,
+  onOpenSync,
+  onSyncNow,
   dark,
   toggleTheme,
 }) {
@@ -2051,6 +2205,12 @@ function Sidebar({
               <L name="RefreshCw" size={17} />
             </button>
           )}
+          <button
+            onClick={syncSettings.enabled && syncReady(syncSettings) ? onSyncNow : onOpenSync}
+            className={`sidebar-refresh-btn ${syncState.busy ? "animate-spin" : ""}`}
+            title={syncSettings.enabled ? "Синхронизировать" : "Настроить синхронизацию"}>
+            <L name={syncSettings.enabled ? "Cloud" : "CloudOff"} size={17} />
+          </button>
           <ThemeToggle dark={dark} toggle={toggleTheme} />
           {isMobile && (
             /*#__PURE__*/ <button onClick={onClose} className="ui-c-140">
@@ -2450,7 +2610,15 @@ function App() {
   const [dark, toggleTheme] = useTheme();
   const [tasks, setTasks] = useLocalStorage(STORAGE_TASKS, []);
   const [lists, setLists] = useLocalStorage(STORAGE_LISTS, []);
+  const [syncSettings, setSyncSettings] = useLocalStorage(STORAGE_SYNC, cleanSyncSettings());
+  const [syncOpen, setSyncOpen] = useState(false);
+  const [syncState, setSyncState] = useState({ busy: false, message: "", error: false });
   const tasksRef = useRef(tasks);
+  const listsRef = useRef(lists);
+  const syncSettingsRef = useRef(syncSettings);
+  const localChangedAtRef = useRef(null);
+  const applyingRemoteRef = useRef(false);
+  const firstDataRef = useRef(true);
   const [view, setView] = useState("myday");
   const [search, setSearch] = useState("");
   const [showCompleted, setShowCompleted] = useState(true);
@@ -2480,6 +2648,20 @@ function App() {
   useEffect(() => {
     tasksRef.current = tasks;
   }, [tasks]);
+  useEffect(() => {
+    listsRef.current = lists;
+  }, [lists]);
+  useEffect(() => {
+    syncSettingsRef.current = cleanSyncSettings(syncSettings);
+  }, [syncSettings]);
+  useEffect(() => {
+    if (firstDataRef.current) {
+      firstDataRef.current = false;
+      return;
+    }
+    if (applyingRemoteRef.current) return;
+    localChangedAtRef.current = nowIso();
+  }, [tasks, lists]);
   useEffect(() => {
     sidebarOpenRef.current = sidebarOpen;
   }, [sidebarOpen]);
@@ -2551,6 +2733,78 @@ function App() {
     [setTasks]
   );
   useReminders(tasks, markFired);
+  const saveSyncSettings = useCallback(
+    (next) => {
+      const clean = cleanSyncSettings(next);
+      setSyncSettings(clean);
+      setSyncState({ busy: false, message: "Настройки сохранены", error: false });
+    },
+    [setSyncSettings]
+  );
+  const performSync = useCallback(
+    async (overrideSettings) => {
+      const settings = cleanSyncSettings(overrideSettings || syncSettingsRef.current);
+      if (!syncReady(settings)) {
+        setSyncOpen(true);
+        setSyncState({ busy: false, message: "Заполните GitHub username, репозиторий, ветку, файл и token", error: true });
+        return;
+      }
+      setSyncState({ busy: true, message: "Соединяюсь с GitHub...", error: false });
+      try {
+        const remote = await githubReadSnapshot(settings);
+        const remoteData = remote?.data || null;
+        const remoteUpdatedAt = remoteData?.updatedAt || null;
+        const lastSeenRemote = settings.lastRemoteUpdatedAt || null;
+        const localChangedAt = localChangedAtRef.current;
+        const firstSyncWithLocalData = !lastSeenRemote && (tasksRef.current.length > 0 || listsRef.current.length > 0);
+        const remoteIsNewerThanSeen = remoteUpdatedAt && (!lastSeenRemote || remoteUpdatedAt > lastSeenRemote);
+        const shouldUseRemote =
+          remoteData &&
+          !firstSyncWithLocalData &&
+          remoteIsNewerThanSeen &&
+          (!localChangedAt || remoteUpdatedAt > localChangedAt);
+
+        if (shouldUseRemote) {
+          applyingRemoteRef.current = true;
+          setTasks(Array.isArray(remoteData.tasks) ? remoteData.tasks : []);
+          setLists(Array.isArray(remoteData.lists) ? remoteData.lists : []);
+          localChangedAtRef.current = null;
+          setTimeout(() => {
+            applyingRemoteRef.current = false;
+          }, 0);
+          setSyncSettings({
+            ...settings,
+            enabled: settings.enabled,
+            lastSyncAt: nowIso(),
+            lastRemoteUpdatedAt: remoteUpdatedAt,
+          });
+          setSyncState({ busy: false, message: "Загружена свежая версия из GitHub", error: false });
+          return;
+        }
+
+        const updatedAt = nowIso();
+        const snapshot = buildSyncSnapshot(tasksRef.current, listsRef.current, updatedAt);
+        await githubWriteSnapshot(settings, snapshot, remote?.sha);
+        localChangedAtRef.current = null;
+        setSyncSettings({
+          ...settings,
+          enabled: settings.enabled,
+          lastSyncAt: nowIso(),
+          lastRemoteUpdatedAt: updatedAt,
+        });
+        setSyncState({ busy: false, message: remote ? "Сохранено в GitHub" : "Файл синхронизации создан в GitHub", error: false });
+      } catch (err) {
+        setSyncState({ busy: false, message: "Не удалось синхронизировать. Проверьте token, репозиторий и интернет.", error: true });
+      }
+    },
+    [setLists, setSyncSettings, setTasks]
+  );
+  useEffect(() => {
+    const settings = cleanSyncSettings(syncSettings);
+    if (!settings.enabled || !syncReady(settings) || syncState.busy) return;
+    const t = setTimeout(() => performSync(settings), localChangedAtRef.current ? 1800 : 700);
+    return () => clearTimeout(t);
+  }, [tasks, lists, syncSettings.enabled]);
   const enableNotif = useCallback(async () => {
     if (!("Notification" in window)) {
       toastDispatch?.("Уведомления не поддерживаются", "", "⚠️");
@@ -3126,7 +3380,12 @@ function App() {
         notifStatus={notifStatus}
         onEnableNotif={enableNotif}
         onTestNotif={testNotif}
-        onRefresh={() => location.reload()}        dark={dark}
+        onRefresh={() => location.reload()}
+        syncSettings={syncSettings}
+        syncState={syncState}
+        onOpenSync={() => setSyncOpen(true)}
+        onSyncNow={() => performSync()}
+        dark={dark}
         toggleTheme={toggleTheme}
       />
       {isMobile && <div
@@ -3243,6 +3502,14 @@ function App() {
       </main>
       <ToastContainer />
       <CreateListModal open={createOpen} onClose={() => setCreateOpen(false)} onCreate={createList} />
+      <SyncSettingsModal
+        open={syncOpen}
+        onClose={() => setSyncOpen(false)}
+        settings={syncSettings}
+        onSave={saveSyncSettings}
+        onSyncNow={(draft) => performSync({ ...cleanSyncSettings(draft), enabled: draft.enabled })}
+        syncState={syncState}
+      />
       <ColorPickerModal
         open={!!colorPicker}
         onClose={() => setColorPicker(null)}

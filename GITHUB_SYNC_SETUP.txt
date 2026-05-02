@@ -1,0 +1,30 @@
+КАК ВКЛЮЧИТЬ СИНХРОНИЗАЦИЮ ЧЕРЕЗ GITHUB
+
+1. Создай приватный репозиторий на GitHub.
+   Например: todo-sync
+
+2. Создай GitHub token:
+   GitHub -> Settings -> Developer settings -> Personal access tokens -> Fine-grained tokens.
+
+3. Для token выбери:
+   - Repository access: только репозиторий todo-sync
+   - Repository permissions -> Contents: Read and write
+
+4. Открой приложение To Do.
+
+5. Нажми кнопку облака в верхней части левой панели.
+
+6. Заполни поля:
+   - GitHub username: твой логин GitHub
+   - Репозиторий: todo-sync
+   - Ветка: main
+   - Файл: todo-data.json
+   - GitHub token: созданный token
+
+7. Нажми "Сохранить", потом "Синхронизировать".
+
+Важно:
+- Задачи и списки будут синхронизироваться через файл todo-data.json.
+- Завершённые задачи тоже входят в синхронизацию.
+- Вложения пока остаются только в браузере, где они были добавлены.
+- Позже этот слой можно заменить на Supabase/Firebase/свой сервер.
